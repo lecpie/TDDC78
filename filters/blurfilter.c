@@ -50,9 +50,12 @@ void blurfilter(const int xsize, const int ysize, pixel* src, const int radius, 
 	  n += wc;
 	}
       }
+      if (x == 0)
+          printf("x red : First : %d\n", pix(src,x,y, xsize)->r);
       pix(dst,x,y, xsize)->r = r/n;
       pix(dst,x,y, xsize)->g = g/n;
       pix(dst,x,y, xsize)->b = b/n;
+
     }
   }
 
@@ -79,6 +82,8 @@ void blurfilter(const int xsize, const int ysize, pixel* src, const int radius, 
 	  n += wc;
 	}
       }
+      if (x == 0)
+          printf("x red : inter : %d, new %d\n", pix(src,x,y, xsize)->r, pix(dst,x,y, xsize)->r);
       pix(src,x,y, xsize)->r = r/n;
       pix(src,x,y, xsize)->g = g/n;
       pix(src,x,y, xsize)->b = b/n;

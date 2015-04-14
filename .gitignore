@@ -1,3 +1,16 @@
+#QtCreator
+*.config
+*.creator*
+*.files
+*.includes
+
+#tmp image
+*out.ppm
+
+#binaries
+blurc
+thresc
+
 # Object files
 *.o
 *.ko
