@@ -37,7 +37,7 @@ int write_ppm (const char * fname, int xpix, int ypix, char * data);
 
 int write_ppm_head (const char * fname, int xpix, int ypix, int *off);
 
-int write_ppm_cols (const char * fname, int xpix, int ypix, int col_off, int cur, char * data);
+int write_ppm_cols (const char * fname, int xpix, int ypix, int xsize, int col_off, int cur, char * data);
 
 int write_ppm_lin (const char * fname, int xpix, int ypix, int cur, char * data);
 

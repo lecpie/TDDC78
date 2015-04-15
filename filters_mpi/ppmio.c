@@ -189,7 +189,7 @@ int write_ppm_lin (const char * fname, int xpix, int ypix, int cur, char * data)
     return 0;
 }
 
-int write_ppm_cols (const char * fname, int xpix, int ypix, int col_off, int cur, char * data) {
+int write_ppm_cols (const char * fname, int xpix, int ypix, int xsize, int col_off, int cur, char * data) {
     FILE * fp;
     int errno = 0;
 
@@ -201,18 +201,15 @@ int write_ppm_cols (const char * fname, int xpix, int ypix, int col_off, int cur
       return 1;
     }
 
-    int id;
-    MPI_Comm_rank(MPI_COMM_WORLD, &id);
-
-    int i, off = col_off;
-    fseek(fp, cur + col_off * 3, SEEK_SET);
-
+    int i, off = 0,
+           file_off = cur + col_off * 3;
+    fseek(fp, file_off, SEEK_SET);
 
     for (i = 0; i < ypix; ++i) {
-        //printf("P%d writes %d pixels from %d\n", id, xpix, ftell(fp));
         fwrite(data + off, sizeof(char) * 3, xpix, fp);
         off += xpix * 3;
-        fseek(fp, off, SEEK_SET);
+        file_off += xsize * 3;
+        fseek(fp, file_off, SEEK_SET);
     }
 
     if (fclose (fp) == EOF) {

@@ -2,6 +2,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+
+#include <iostream>
+
 #include <openmpi/mpi.h>
 
 #include "ppmio.h"
@@ -11,6 +14,8 @@
 #define MAX_RAD 1000
 
 #define ROOTPROC 0
+
+using namespace std;
 
 void die (int code)
 {
@@ -24,6 +29,8 @@ int main (int argc, char ** argv) {
     int id, np;
     MPI_Comm_rank(MPI_COMM_WORLD, &id);
     MPI_Comm_size(MPI_COMM_WORLD, &np);
+
+    double start;
 
     if (id == ROOTPROC) {
         int radius;
@@ -52,6 +59,8 @@ int main (int argc, char ** argv) {
             fprintf(stderr, "Too large maximum color-component value\n");
             die(1);
         }
+
+        start = MPI_Wtime();
 
         int i;
 
@@ -132,7 +141,7 @@ int main (int argc, char ** argv) {
 
 
     for (i = 0; i < np; ++i) {
-        //MPI_Send(&n, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
+        MPI_Send(&n, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
 
         strtlin[i] = prev_lin;
         prev_lin += ysize / np;
@@ -145,22 +154,23 @@ int main (int argc, char ** argv) {
         ncols[i] = ncol;
         strtcol[i] = prev;
         prev += ncol;
-        /*
+
         printf("P%d sends %d lines of size %d to %d from column %d\n", id, n, ncols[i], i, beg);
         for (j = 0; j < n; ++j) {
-            int off = j * xsize + beg;
-            MPI_Send(data + off * 3, ncols[i] * 3, MPI_CHAR, i, 1, MPI_COMM_WORLD);
+
+            int off = j * xsize + strtcol[i];
+
+            MPI_Send(data + off, ncols[i] * 3, MPI_CHAR, i, 1, MPI_COMM_WORLD);
         }
-        */
 
         beg += ncols[i];
     }
 
     int ncol = ncols[id];
 
-    /*
 
-    data = malloc(3 * ncol * ysize);
+    delete[] data;
+    data = new pixel [ncol * ysize];
 
     int expected = np;
     while (expected--) {
@@ -169,10 +179,10 @@ int main (int argc, char ** argv) {
         MPI_Recv(&lines, 1, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status);
 
         printf("P%d receiving %d lines from P%d\n", id, lines, status.MPI_SOURCE);
-        fflush(stdout);
+
         for (i = 0; i < lines; ++i) {
-            int off = strtcol[status.MPI_SOURCE] + ncol * i;
-            MPI_Recv(data + off * 3, ncol * 3, MPI_CHAR, status.MPI_SOURCE, 1, MPI_COMM_WORLD, &status);
+            int off = (strtlin[status.MPI_SOURCE] + i) * ncol;
+            MPI_Recv(data + off, ncol * 3, MPI_CHAR, status.MPI_SOURCE, 1, MPI_COMM_WORLD, &status);
         }
         printf("P%d finished receiving from P%d\n", id, status.MPI_SOURCE);
     }
@@ -181,11 +191,16 @@ int main (int argc, char ** argv) {
     blurfilter_y(ncol, ysize, data, radius, w);
     printf("P%d ends vertical bluring\n", id);
 
-    */
 
-    printf("P%d starts output line %d to %d\n", id, strtlin[id], strtlin[id] + n);
-    write_ppm_lin(argv[3], xsize, n, cur_out + xsize * strtlin[id] * 3, (char*) data);
+    printf("P%d starts output col %d to %d, %d lines\n", id, strtcol[id], strtcol[id] + ncol, ysize);
+    write_ppm_cols(argv[3], ncol, ysize, xsize, strtcol[id], cur_out, (char*) data);
     printf("P%d ends writing output\n", id);
+
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    if (id == 0) {
+        printf ("Took %g seconds\n", MPI_Wtime() - start);
+    }
 
     MPI_Finalize();
 

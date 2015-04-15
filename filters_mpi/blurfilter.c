@@ -36,8 +36,6 @@ void blurfilter_x(const int xsize, const int ysize, pixel *src, const int radius
     int id;
     MPI_Comm_rank(MPI_COMM_WORLD, &id);
 
-    printf("P%d starts blur_x { x : %d, y %d }\n", id, xsize, ysize);
-
     for (y=0; y<ysize; y++) {
         for (x=0; x<xsize; x++) {
 
@@ -69,22 +67,11 @@ void blurfilter_x(const int xsize, const int ysize, pixel *src, const int radius
                 }
             }
 
-            if (x == 25 && y ==50) {
-                printf("r : %lf, n : %lf, w[0] : %lf, x red : Prev : %d\n", r, n, w[0], pix(src,x,y, xsize)->r);
-            }
             pix(dst,x,y, xsize)->r = r/n;
             pix(dst,x,y, xsize)->g = g/n;
             pix(dst,x,y, xsize)->b = b/n;
-            if (x == 25 && y ==50)
-                printf("new %d\n", pix(dst,x,y, xsize)->r);
-            /*
-            pix(dst,x,y, xsize)->r = -1;
-            pix(dst,x,y, xsize)->g = 0;
-            pix(dst,x,y, xsize)->b = 0;
-            */
         }
     }
-    //memcpy(dst, src, xsize * ysize * 3);
     memcpy(src, dst, xsize * ysize * 3);
 }
 
@@ -98,33 +85,33 @@ void blurfilter_y(const int xsize, const int ysize, pixel *src, const int radius
     for (y=0; y<ysize; y++) {
         for (x=0; x<xsize; x++) {
             //get their color components
-            r = w[0] * pix(dst, x, y, xsize)->r;
-            g = w[0] * pix(dst, x, y, xsize)->g;
-            b = w[0] * pix(dst, x, y, xsize)->b;
+            r = w[0] * pix(src, x, y, xsize)->r;
+            g = w[0] * pix(src, x, y, xsize)->g;
+            b = w[0] * pix(src, x, y, xsize)->b;
             n = w[0];
             for ( wi=1; wi <= radius; wi++) {
                 wc = w[wi];
                 y2 = y - wi;
                 if(y2 >= 0) {
-                    r += wc * pix(dst, x, y2, xsize)->r;
-                    g += wc * pix(dst, x, y2, xsize)->g;
-                    b += wc * pix(dst, x, y2, xsize)->b;
+                    r += wc * pix(src, x, y2, xsize)->r;
+                    g += wc * pix(src, x, y2, xsize)->g;
+                    b += wc * pix(src, x, y2, xsize)->b;
                     n += wc;
                 }
                 y2 = y + wi;
                 if(y2 < ysize) {
-                    r += wc * pix(dst, x, y2, xsize)->r;
-                    g += wc * pix(dst, x, y2, xsize)->g;
-                    b += wc * pix(dst, x, y2, xsize)->b;
+                    r += wc * pix(src, x, y2, xsize)->r;
+                    g += wc * pix(src, x, y2, xsize)->g;
+                    b += wc * pix(src, x, y2, xsize)->b;
                     n += wc;
                 }
             }
-            pix(src,x,y, xsize)->r = r/n;
-            pix(src,x,y, xsize)->g = g/n;
-            pix(src,x,y, xsize)->b = b/n;
+            pix(dst,x,y, xsize)->r = r/n;
+            pix(dst,x,y, xsize)->g = g/n;
+            pix(dst,x,y, xsize)->b = b/n;
         }
     }
-    memcpy(src, dst, xsize * ysize);
+    memcpy(src, dst, xsize * ysize * 3);
 
 }
 
