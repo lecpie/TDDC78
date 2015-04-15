@@ -108,21 +108,13 @@ int main (int argc, char ** argv) {
     double w[MAX_RAD];
     get_gauss_weights(radius, w);
 
-
-    pixel * data;
-
-    if ((data = (pixel *) malloc(xsize * n * 3)) == NULL)
-        perror("malloc");
-
-    printf("P%d has data array of size %d\n", id, xsize * n * 3);
+    pixel * data = new pixel[xsize * n];
 
     int end;
 
-    printf ("P%d read %d bytes in file from %d\n", id, n * xsize, cur);
     if (read_ppm_data(argv[2], xsize, n, cur, (char*) data, &end)) {
         printf("P%d : Error reading file\n", id);
     }
-    printf ("P%d ended reading at %d\n", id, end);
 
     printf ("P%d calculates horizontal blurring\n", id);
     blurfilter_x(xsize, n, data, radius, w);
@@ -132,15 +124,16 @@ int main (int argc, char ** argv) {
 
     int ncols[np];
     int strtcol[np];
-    int prev = 0;
-
     int strtlin[np];
+
+    int prev_col = 0;
     int prev_lin = 0;
 
-    int beg = 0;
+    int beg;
 
+    pixel * write_ptr;
 
-    for (i = 0; i < np; ++i) {
+    for (i = 0, beg = 0; i < np; ++i, ncols[i]) {
         MPI_Send(&n, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
 
         strtlin[i] = prev_lin;
@@ -148,59 +141,55 @@ int main (int argc, char ** argv) {
         if (ysize % np > i)
             ++prev_lin;
 
-        int ncol = xsize / np;
+        ncols[i] = xsize / np;
         if (xsize % np > i)
-            ++ncol;
-        ncols[i] = ncol;
-        strtcol[i] = prev;
-        prev += ncol;
+            ++ncols[i];
 
-        printf("P%d sends %d lines of size %d to %d from column %d\n", id, n, ncols[i], i, beg);
-        for (j = 0; j < n; ++j) {
+        strtcol[i] = prev_col;
+        prev_col += ncols[i];
 
-            int off = j * xsize + strtcol[i];
+        int length = ncols[i] * 3;
 
-            MPI_Send(data + off, ncols[i] * 3, MPI_CHAR, i, 1, MPI_COMM_WORLD);
+        // Sending line parts to process i for column
+
+        for (j = 0, write_ptr = data + strtcol[i]; j < n; ++j, write_ptr += xsize) {
+            MPI_Send(write_ptr, length, MPI_CHAR, i, 1, MPI_COMM_WORLD);
         }
-
-        beg += ncols[i];
     }
 
     int ncol = ncols[id];
-
 
     delete[] data;
     data = new pixel [ncol * ysize];
 
     int expected = np;
+    int width_len = ncol * 3;
+
     while (expected--) {
-        printf("P%d awaits\n", id);
         int lines;
         MPI_Recv(&lines, 1, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status);
 
-        printf("P%d receiving %d lines from P%d\n", id, lines, status.MPI_SOURCE);
-
-        for (i = 0; i < lines; ++i) {
-            int off = (strtlin[status.MPI_SOURCE] + i) * ncol;
-            MPI_Recv(data + off, ncol * 3, MPI_CHAR, status.MPI_SOURCE, 1, MPI_COMM_WORLD, &status);
+        for (i = 0, write_ptr = data + strtlin[status.MPI_SOURCE] * ncol; i < lines; ++i, write_ptr += ncol) {
+            MPI_Recv(write_ptr, width_len, MPI_CHAR, status.MPI_SOURCE, 1, MPI_COMM_WORLD, &status);
         }
-        printf("P%d finished receiving from P%d\n", id, status.MPI_SOURCE);
     }
 
     printf("P%d starts vertical bluring\n", id);
     blurfilter_y(ncol, ysize, data, radius, w);
     printf("P%d ends vertical bluring\n", id);
 
+    // Synchronize to measure time when everyone is done
+    MPI_Barrier(MPI_COMM_WORLD);
 
-    printf("P%d starts output col %d to %d, %d lines\n", id, strtcol[id], strtcol[id] + ncol, ysize);
+    if (id == ROOTPROC) {
+        printf ("Filtering took %g seconds\n", MPI_Wtime() - start);
+    }
+
+    printf("P%d starts output\n", id, strtcol[id]);
     write_ppm_cols(argv[3], ncol, ysize, xsize, strtcol[id], cur_out, (char*) data);
     printf("P%d ends writing output\n", id);
 
-    MPI_Barrier(MPI_COMM_WORLD);
-
-    if (id == 0) {
-        printf ("Took %g seconds\n", MPI_Wtime() - start);
-    }
+    delete[] data;
 
     MPI_Finalize();
 

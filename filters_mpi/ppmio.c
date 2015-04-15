@@ -7,7 +7,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <mpi/mpi.h>
 
 #include "ppmio.h"
 
@@ -120,11 +119,6 @@ int read_ppm_data (const char * fname, int xpix, int ypix, int cur, char *data, 
 
     fseek(fp, cur, SEEK_SET);
 
-    int i;
-
-    int id;
-    MPI_Comm_rank(MPI_COMM_WORLD, &id);
-
     if (fread(data, sizeof(char), ypix * xpix * 3, fp) != ypix * xpix * 3)
         return 2;
 
@@ -175,9 +169,6 @@ int write_ppm_lin (const char * fname, int xpix, int ypix, int cur, char * data)
       return 1;
     }
 
-    int id;
-    MPI_Comm_rank(MPI_COMM_WORLD, &id);
-
     fseek(fp, cur, SEEK_SET);
 
     fwrite (data, 3 * sizeof(char), xpix * ypix, fp);
@@ -201,15 +192,17 @@ int write_ppm_cols (const char * fname, int xpix, int ypix, int xsize, int col_o
       return 1;
     }
 
-    int i, off = 0,
-           file_off = cur + col_off * 3;
+    int i, file_off = cur + col_off * 3;
+
+    char * buf_ptr;
+    int pixel_size = 3 * sizeof(char),
+        file_byte_off = xsize * pixel_size,
+        buf_byte_off  = xpix  * pixel_size;
+
     fseek(fp, file_off, SEEK_SET);
 
-    for (i = 0; i < ypix; ++i) {
-        fwrite(data + off, sizeof(char) * 3, xpix, fp);
-        off += xpix * 3;
-        file_off += xsize * 3;
-        fseek(fp, file_off, SEEK_SET);
+    for (i = 0, buf_ptr = data; i < ypix; ++i, buf_ptr += buf_byte_off, file_off += file_byte_off, fseek(fp, file_off, SEEK_SET)) {
+        fwrite(buf_ptr, pixel_size, xpix, fp);
     }
 
     if (fclose (fp) == EOF) {
