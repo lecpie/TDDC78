@@ -3,6 +3,8 @@
 *.creator*
 *.files
 *.includes
+*.pro*
+*.pri
 
 #tmp image
 *out.ppm
