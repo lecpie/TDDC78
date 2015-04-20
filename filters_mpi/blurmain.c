@@ -5,7 +5,7 @@
 
 #include <iostream>
 
-#include <openmpi/mpi.h>
+#include <mpi.h>
 
 #include "ppmio.h"
 #include "blurfilter.h"

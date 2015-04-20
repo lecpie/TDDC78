@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <mpi/mpi.h>
+#include <mpi.h>
 
 #include "ppmio.h"
 #include "thresfilter.h"
