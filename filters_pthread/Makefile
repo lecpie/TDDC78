@@ -1,8 +1,8 @@
 CC=cc
 
-CFLAGS = 
+CFLAGS = -g -pthread
 
-LFLAGS= -lpthread -lrt -lm
+LFLAGS= -lrt -lm -pthread
 
 all: blurc thresc
 
