@@ -6,13 +6,13 @@
 #include "blurfilter.h"
 #include "gaussw.h"
 
+#define MAX_RAD 1000
 
 int main (int argc, char ** argv) {
    int radius;
     int xsize, ysize, colmax;
     pixel src[MAX_PIXELS];
     struct timespec stime, etime;
-#define MAX_RAD 1000
 
     double w[MAX_RAD];
 
