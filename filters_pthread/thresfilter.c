@@ -5,7 +5,7 @@
 
 #define uint unsigned int
 
-#define NUMTHREAD 8
+#define NUMTHREAD 16
 
 typedef struct thread_param_t {
     int startline;

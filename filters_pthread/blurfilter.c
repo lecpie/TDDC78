@@ -12,7 +12,7 @@
 #include "ppmio.h"
 
 
-#define NUMTHREAD 8
+#define NUMTHREAD 16
 
 pixel* pix(pixel* image, const int xx, const int yy, const int xsize)
 {
