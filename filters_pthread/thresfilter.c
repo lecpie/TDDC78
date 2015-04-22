@@ -7,10 +7,10 @@
 
 #define NUMTHREAD 16
 
-typedef struct thread_param_t {
-    int startline;
-    int n;
-} thread_param_t;
+typedef struct param_t {
+    int strt_line;
+    int n_line;
+} param_t;
 
 pixel * image;
 int xsiz, ysiz;
@@ -25,8 +25,8 @@ int div_done  = 0;
 
 void * thresfilter_lines (void * void_params)
 {
-    int startline = ((thread_param_t *) void_params)->startline,
-        n   = ((thread_param_t *) void_params)->n;
+    int startline = ((param_t *) void_params)->strt_line,
+        n         = ((param_t *)        void_params)->n_line;
 
     int sum = 0;
 
@@ -73,11 +73,8 @@ void * thresfilter_lines (void * void_params)
 
 void thresfilter(const int xsize, const int ysize, pixel* src)
 {
-    thread_param_t * params;
-    pthread_t      * threads;
-
-    params  = (thread_param_t *) malloc (NUMTHREAD * sizeof (thread_param_t));
-    threads = (pthread_t      *) malloc (NUMTHREAD * sizeof (pthread_t));
+    param_t   params  [NUMTHREAD];
+    pthread_t threads [NUMTHREAD];
 
     // Initializing global shared variables
 
@@ -85,25 +82,26 @@ void thresfilter(const int xsize, const int ysize, pixel* src)
     ysiz = ysize;
     image = src;
 
+    // Calculate number of line to handle per thread
+
+    int n_lin   = ysize / NUMTHREAD,
+        lft_lin = ysize % NUMTHREAD;
+
     // Launching all threads with right parameters
 
-    int i, start = 0;
-    for (i = 0; i < NUMTHREAD; ++i) {
+    int i, start;
 
-        // Calculate number of line to handle per thread
-        int nline = ysize / NUMTHREAD;
-        if (ysize % NUMTHREAD > i)
-            ++nline;
+    for (i = 0, start = 0; i < NUMTHREAD; ++i) {
 
         // Store parameters in a struct to send them as one parameter
-        params[i].startline = start;
-        params[i].n         = nline;
+        params[i].strt_line = start;
+        params[i].n_line    = (lft_lin > i) ? n_lin + 1 : n_lin;
 
         // Launch the thread
         pthread_create(threads + i, NULL, thresfilter_lines, params + i);
 
         // The next thread will handle lines after the last thread
-        start += nline;
+        start += params[i].n_line;
     }
 
     // Waiting all threads
