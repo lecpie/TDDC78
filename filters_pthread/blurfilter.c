@@ -165,8 +165,8 @@ void blurfilter(const int xsize, const int ysize, pixel* src, const int radius, 
         args[i].start_col = start_col;
         args[i].start_lin = start_lin;
 
-        start_col += n_col;
-        start_lin += n_lin;
+        start_col += args[i].n_col;
+        start_lin += args[i].n_lin;
 
         pthread_create(threads + i, NULL, blurfilter_thr, args + i);
     }
