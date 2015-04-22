@@ -26,6 +26,7 @@ int main (int argc, char ** argv) {
     int i;
 
     int id, np;
+    double start_time;
 
     MPI_Request req;
 
@@ -62,6 +63,8 @@ int main (int argc, char ** argv) {
 
         printf("P%d: Read file, sending tasks\n", id);
 
+        start_time = MPI_Wtime();
+
         totalsize = xsize * ysize;
 
         int start = 0;
@@ -94,6 +97,8 @@ int main (int argc, char ** argv) {
     MPI_Recv(src, size * 3, MPI_CHAR, ROOTPROC, 2, MPI_COMM_WORLD, &status);
 
     int sum, sumcpy;
+
+
 
     calc_sum(src, size, &sum);
 
@@ -147,7 +152,9 @@ int main (int argc, char ** argv) {
             MPI_Wait(assembl + expected, &status);
         }
 
-        printf("P%d: Result assembled, writing to file\n", id);
+        printf("P%d: Done, took %gs\n", id, MPI_Wtime() - start_time);
+
+        printf("P%d: Writing to file\n", id);
 
         if (write_ppm(argv[2], xsize, ysize, (char *) image) != 0) {
             perror("write_ppm");
