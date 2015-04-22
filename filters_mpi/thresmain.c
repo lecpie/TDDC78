@@ -98,8 +98,6 @@ int main (int argc, char ** argv) {
 
     int sum, sumcpy;
 
-
-
     calc_sum(src, size, &sum);
 
     sumcpy = sum;
@@ -107,7 +105,7 @@ int main (int argc, char ** argv) {
     for (i = 0; i < np; ++i) {
         if (i == id) continue;
 
-        MPI_Send(&sumcpy, 1, MPI_INT, i, 3, MPI_COMM_WORLD);
+        MPI_Isend(&sumcpy, 1, MPI_INT, i, 3, MPI_COMM_WORLD, &req);
     }
 
     int expected = np - 1;
@@ -128,7 +126,7 @@ int main (int argc, char ** argv) {
     printf("P%d: Filtering done, sending to root\n", id);
 
 
-    MPI_Send(&size, 1, MPI_INT, ROOTPROC, 4, MPI_COMM_WORLD);
+    MPI_Isend(&size, 1, MPI_INT, ROOTPROC, 4, MPI_COMM_WORLD, &req);
     MPI_Isend(src, size * 3, MPI_CHAR, ROOTPROC, 5, MPI_COMM_WORLD, &req);
     
     if (id == ROOTPROC) {
