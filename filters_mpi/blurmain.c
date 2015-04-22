@@ -3,8 +3,6 @@
 #include <string.h>
 #include <time.h>
 
-#include <iostream>
-
 #include <mpi.h>
 
 #include "ppmio.h"
@@ -14,8 +12,6 @@
 #define MAX_RAD 1000
 
 #define ROOTPROC 0
-
-using namespace std;
 
 void die (int code)
 {
@@ -108,7 +104,7 @@ int main (int argc, char ** argv) {
     double w[MAX_RAD];
     get_gauss_weights(radius, w);
 
-    pixel * data = new pixel[xsize * n];
+    pixel * data = (pixel *) malloc(sizeof(pixel) * xsize * n);
 
     int end;
 
@@ -159,8 +155,8 @@ int main (int argc, char ** argv) {
 
     int ncol = ncols[id];
 
-    delete[] data;
-    data = new pixel [ncol * ysize];
+    free(data);
+    data = malloc(sizeof(pixel) * ncol * ysize);
 
     int expected = np;
     int width_len = ncol * 3;
@@ -189,7 +185,7 @@ int main (int argc, char ** argv) {
     write_ppm_cols(argv[3], ncol, ysize, xsize, strtcol[id], cur_out, (char*) data);
     printf("P%d ends writing output\n", id);
 
-    delete[] data;
+    free(data);
 
     MPI_Finalize();
 

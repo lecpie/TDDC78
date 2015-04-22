@@ -1,8 +1,8 @@
-CC=g++
+CC=gcc
 
-CFLAGS = -g -std=c++11 $(shell mpiCC -showme:compile)
+CFLAGS = -g -lm -std=c11 $(shell mpicc -showme:compile)
 
-LFLAGS= -pthread $(shell mpiCC -showme:link)
+LFLAGS= -pthread -lm $(shell mpicc -showme:link)
 
 all: blurc thresc
 

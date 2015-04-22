@@ -14,17 +14,32 @@ void die (int ret) {
     exit(ret);
 }
 
+typedef struct arg_t {
+    int start;
+    int size;
+
+} arg_t;
+
 int main (int argc, char ** argv) {
-    int xsize, ysize, colmax, cur_read, lines, line_start, cur_out;
+    int xsize, ysize, colmax, n_lin;
 
     int i;
 
     int id, np;
 
+    MPI_Request req;
+
+    pixel * image;
+    int size, totalsize;
+
     MPI_Init(&argc, &argv);
 
     MPI_Comm_size(MPI_COMM_WORLD, &np);
     MPI_Comm_rank(MPI_COMM_WORLD, &id);
+
+    // Creating arg type
+
+    arg_t args[np];
 
     if (id == ROOTPROC) {
         // Take care of the arguments
@@ -34,89 +49,110 @@ int main (int argc, char ** argv) {
             die(1);
         }
 
-        if (read_ppm_head(argv[1], &xsize, &ysize, &colmax, &cur_read) != 0)
+        image = malloc(3 * MAX_PIXELS);
+
+        if (read_ppm(argv[1], &xsize, &ysize, &colmax, (char *) image))
             die(1);
+
 
         if (colmax > 255) {
             fprintf(stderr, "Too large maximum color-component value\n");
             die(1);
         }
 
-        if (write_ppm_head(argv[2], xsize, ysize, &cur_out) != 0) {
-            die(2);
-        }
+        printf("P%d: Read file, sending tasks\n", id);
 
-        line_start = 0;
+        totalsize = xsize * ysize;
+
+        int start = 0;
 
         for (i = 0; i < np; ++i) {
-
-            lines = ysize / np;
+            n_lin = ysize / np;
             if (ysize % np > id)
-                ++lines;
+                ++n_lin;
 
-            MPI_Send(&xsize, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
-            MPI_Send(&ysize, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
-            MPI_Send(&cur_read, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
-            MPI_Send(&lines, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
-            MPI_Send(&line_start, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
-            MPI_Send(&cur_out, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
+            args[i].start = start;
+            args[i].size  = n_lin * xsize;
 
-            line_start += lines;
+            MPI_Isend(&args[i].size, 1, MPI_INT, i, 0, MPI_COMM_WORLD, &req);
+            MPI_Isend(&totalsize,    1, MPI_INT, i, 1, MPI_COMM_WORLD, &req);
+
+            MPI_Isend(image + start, args[i].size * 3, MPI_CHAR, i, 2, MPI_COMM_WORLD, &req);
+
+            start += args[i].size;
         }
 
     }
+
     MPI_Status status;
 
-    MPI_Recv(&xsize, 1, MPI_INT, ROOTPROC, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-    MPI_Recv(&ysize, 1, MPI_INT, ROOTPROC, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-    MPI_Recv(&cur_read, 1, MPI_INT, ROOTPROC, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-    MPI_Recv(&lines, 1, MPI_INT, ROOTPROC, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-    MPI_Recv(&line_start, 1, MPI_INT, ROOTPROC, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-    MPI_Recv(&cur_out, 1, MPI_INT, ROOTPROC, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+    MPI_Recv(&size,      1, MPI_INT, ROOTPROC, 0, MPI_COMM_WORLD, &status);
+    MPI_Recv(&totalsize, 1, MPI_INT, ROOTPROC, 1, MPI_COMM_WORLD, &status);
 
-    pixel * src = new pixel[lines * xsize];
+    pixel * src = malloc (3 * size);
 
-    cur_read += line_start * xsize * sizeof(pixel);
-    cur_out += line_start * xsize * sizeof(pixel);
+    MPI_Recv(src, size * 3, MPI_CHAR, ROOTPROC, 2, MPI_COMM_WORLD, &status);
 
-    read_ppm_data(argv[1], xsize, lines, cur_read, (char *) src, NULL);
+    int sum, sumcpy;
 
-    double start = MPI_Wtime();
+    calc_sum(src, size, &sum);
 
-    int sum, nump = xsize * lines, totalp = xsize * ysize;
-
-    calc_sum(xsize, lines, src, nump, &sum);
+    sumcpy = sum;
 
     for (i = 0; i < np; ++i) {
         if (i == id) continue;
 
-        MPI_Send(&sum, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
+        MPI_Send(&sumcpy, 1, MPI_INT, i, 3, MPI_COMM_WORLD);
     }
 
     int expected = np - 1;
     int add_sum;
 
     while (expected--) {
-        MPI_Recv(&add_sum, 1, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status);
+        MPI_Recv(&add_sum, 1, MPI_INT, MPI_ANY_SOURCE, 3, MPI_COMM_WORLD, &status);
 
         sum += add_sum;
     }
 
-    sum /= totalp;
+    sum /= totalsize;
 
-    calc_thresfilter(src, nump, sum);
+    printf("P%d: Calling filter...\n", id);
 
-    MPI_Barrier(MPI_COMM_WORLD);
+    calc_thresfilter(src, size, sum);
 
-    if (id == ROOTPROC) {
-        printf("Filtering took: %g secs\n", MPI_Wtime() - start) ;
-    }
+    printf("P%d: Filtering done, sending to root\n", id);
 
-    /* write result */
-    printf("P%d writing output file\n", id);
+
+    MPI_Send(&size, 1, MPI_INT, ROOTPROC, 4, MPI_COMM_WORLD);
+    MPI_Isend(src, size * 3, MPI_CHAR, ROOTPROC, 5, MPI_COMM_WORLD, &req);
     
-    if(write_ppm_lin (argv[2], xsize, lines, cur_out, (char *)src) != 0)
-        die(1);
+    if (id == ROOTPROC) {
+        expected = np;
+        int received;
+
+        printf ("P%d: Waiting result parts\n", id);
+
+        MPI_Request assembl[np];
+
+        while (expected--) {
+            MPI_Recv(&received, 1, MPI_INT, MPI_ANY_SOURCE, 4, MPI_COMM_WORLD, &status);
+            printf ("P%d: Receiving part from P%d, assembling...\n", id, status.MPI_SOURCE);
+
+            MPI_Irecv(image + args[status.MPI_SOURCE].start, 3 * args[status.MPI_SOURCE].size,
+                     MPI_CHAR, status.MPI_SOURCE, 5, MPI_COMM_WORLD, assembl + expected);
+        }
+
+        expected = np;
+        while (expected--) {
+            MPI_Wait(assembl + expected, &status);
+        }
+
+        printf("P%d: Result assembled, writing to file\n", id);
+
+        if (write_ppm(argv[2], xsize, ysize, (char *) image) != 0) {
+            perror("write_ppm");
+        }
+    }
 
     MPI_Finalize();
 

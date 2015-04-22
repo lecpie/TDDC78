@@ -7,13 +7,13 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <mpi/mpi.h>
+
+#include <mpi.h>
+
 #include "blurfilter.h"
 #include "ppmio.h"
 
 #include <assert.h> // memory calculation checks
-
-#define DBG
 
 pixel* pix(pixel* image, const int xx, const int yy, const int xsize)
 {
@@ -31,7 +31,10 @@ void blurfilter_x(const int xsize, const int ysize, pixel *src, const int radius
 {
     int x,y,x2, wi;
     double r,g,b,n, wc;
-    pixel * dst = new pixel[xsize * ysize];
+
+    int size = xsize * ysize;
+
+    pixel * dst = (pixel *) malloc(sizeof(pixel) * size);
 
     int id;
     MPI_Comm_rank(MPI_COMM_WORLD, &id);

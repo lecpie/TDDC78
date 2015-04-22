@@ -24,10 +24,13 @@ void thresfilter(const int xsize, const int ysize, pixel* src){
   }
 }
 
-void calc_sum (const int xsize, const int ysize, pixel * src, int nump, int * sum) {
+void calc_sum (pixel * src, int size, int * sum)
+{
     uint i;
 
-    for(i = 0, *sum = 0; i < nump; i++) {
+    pixel * end = src + size;
+
+    for(*sum = 0; src != end; ++src) {
       *sum += (uint)src[i].r + (uint)src[i].g + (uint)src[i].b;
     }
 }

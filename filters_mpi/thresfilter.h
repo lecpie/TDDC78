@@ -13,7 +13,7 @@ typedef struct _pixel {
 
 void thresfilter(const int xsize, const int ysize, pixel* src);
 
-void calc_sum (const int xsize, const int ysize, pixel * src, int nump, int * sum);
+void calc_sum (pixel * src, int size, int * sum);
 
 void calc_thresfilter (pixel * src, const int nump, const int sum);
 
