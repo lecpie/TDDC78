@@ -11,7 +11,7 @@
 int main (int argc, char ** argv) {
    int radius;
     int xsize, ysize, colmax;
-    pixel src[MAX_PIXELS];
+    pixel * src = (pixel *) malloc(sizeof(pixel) * MAX_PIXELS);
     struct timespec stime, etime;
 
     double w[MAX_RAD];

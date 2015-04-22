@@ -2,12 +2,13 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+
 #include "ppmio.h"
 #include "thresfilter.h"
 
 int main (int argc, char ** argv) {
     int xsize, ysize, colmax;
-    pixel src[MAX_PIXELS];
+    pixel * src = (pixel *) malloc(sizeof(pixel) * MAX_PIXELS);
     struct timespec stime, etime;
 
     /* Take care of the arguments */
