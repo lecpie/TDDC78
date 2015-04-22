@@ -1,6 +1,6 @@
 CC=gcc
 
-CFLAGS = -g -pthread
+CFLAGS = -pg -pthread
 
 LFLAGS= -lrt -lm -pthread
 
