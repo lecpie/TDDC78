@@ -1,0 +1,125 @@
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <time.h>
+#include "ppmio.h"
+#include "blurfilter.h"
+#include "gaussw.h"
+#include "mpi.h"
+
+#define  MASTER		0
+
+int main (int argc, char ** argv) {
+   int radius;
+    int xsize, colmax;
+    pixel src[MAX_PIXELS];
+    struct timespec stime, etime;
+    #define MAX_RAD 1000
+    double w[MAX_RAD];
+    MPI_Status status;
+    int chunksize;
+    int np, me;
+
+    int ysize;
+    MPI_Init( &argc, &argv );
+    MPI_Comm_size( MPI_COMM_WORLD, &np );
+    MPI_Comm_rank( MPI_COMM_WORLD, &me );
+
+
+    int lowbound_ysize, upbound_ysize;
+
+    //
+    if( me == MASTER){
+
+          /* Take care of the arguments */
+
+          if (argc != 4) {
+      	fprintf(stderr, "Usage: %s radius infile outfile\n", argv[0]);
+      	exit(1);
+          }
+          radius = atoi(argv[1]);
+          if((radius > MAX_RAD) || (radius < 1)) {
+      	fprintf(stderr, "Radius (%d) must be greater than zero and less then %d\n", radius, MAX_RAD);
+      	exit(1);
+          }
+
+          /* read file */
+          if(read_ppm (argv[2], &xsize, &ysize, &colmax, (char *) src) != 0)
+              exit(1);
+
+          if (colmax > 255) {
+      	fprintf(stderr, "Too large maximum color-component value\n");
+      	exit(1);
+          }
+
+          printf("Has read the image, generating coefficients\n");
+
+          /* filter */
+          get_gauss_weights(radius, w);
+
+
+          chunksize = ysize/np;
+          /*
+          MASTER sends the regions and the parameters to be processed to each process
+            communication of all parameters
+          */
+
+
+          //communicating radius, w, image, xsize,    maybe not ----> ysize(offset) and chunksize
+
+          // radius, common to everybody
+          MPI_Scatter( &radius, 1, MPI_INT, &radius, 1, MPI_INT, me, MPI_COMM_WORLD );
+
+          // w, common to everybody
+          MPI_Scatter( w, 1, MPI_DOUBLE, w, 1, MPI_DOUBLE, me, MPI_COMM_WORLD );
+
+          //xsize, common to everybody
+          MPI_Scatter( &xsize, 1, MPI_INT, &xsize, 1, MPI_INT, me, MPI_COMM_WORLD );
+
+          //src, image, with chunksize common to everybody
+          MPI_Scatter( &src, chunksize , MPI_BYTE, src, chunksize, MPI_BYTE, me, MPI_COMM_WORLD );
+
+
+
+/*
+          int MPI Scatter( void *sbuf, int scount, MPI datatype stype,void *rbuf, int rcount, MPI datatype rtype,int rootrank, MPI Comm comm );
+          MPI_Scatter( work, lsize, MPI_FLOAT,local+1, lsize, MPI_FLOAT, 0, com );
+
+          */
+          clock_gettime(CLOCK_REALTIME, &stime);
+    }
+
+    if(me > MASTER){
+      /// gathering ?
+
+    }
+
+    lowbound_ysize = me*chunksize;
+    upbound_ysize = lowbound_ysize+chunksize;
+    printf("Calling filter\n");
+    blurfilter(xsize, lowbound_ysize, upbound_ysize, src, radius, w);
+
+
+
+
+    if(me ==  MASTER){
+          // after the execution, MASTER proc gathers all the results from each process
+          // MPI_Gather( void *sbuf, int scount, MPI datatype stype,  void *rbuf, int rcount, MPI datatype rtype,int rootrank, MPI Comm comm );
+
+
+
+
+          clock_gettime(CLOCK_REALTIME, &etime);
+          // printf("Filtering took: %g secs\n", (etime.tv_sec  - stime.tv_sec) +
+      	  //  1e-9*(etime.tv_nsec  - stime.tv_nsec)) ;
+
+          /* write result */
+          printf("Writing output file\n");
+
+          if(write_ppm (argv[3], xsize, ysize, (char *)src) != 0)
+            exit(1);
+    }
+
+    MPI_Finalize();
+    return(0);
+}
