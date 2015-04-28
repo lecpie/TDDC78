@@ -15,7 +15,7 @@ typedef struct param_t {
 pixel * image;
 int xsiz, ysiz;
 
-int thresc = 0;
+long long unsigned int thresc = 0;
 
 pthread_mutex_t thres_calc_lock;
 pthread_mutex_t thres_div_lock;
@@ -28,7 +28,7 @@ void * thresfilter_lines (void * void_params)
     int startline = ((param_t *) void_params)->strt_line,
         n         = ((param_t *)        void_params)->n_line;
 
-    int sum = 0;
+    long long unsigned int sum = 0;
 
     pixel * start = image + xsiz * startline,
           * end   = start + xsiz * n;
