@@ -1,7 +1,7 @@
 
-CFLAGS = -g
+CFLAGS =
 
-LFLAGS= -g -lpthread -lrt -lm
+LFLAGS= -lpthread -lrt -lm
 
 all: blurc thresc
 

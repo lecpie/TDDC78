@@ -9,6 +9,9 @@
 #tmp image
 *out.ppm
 
+#generated measurement file
+*measures.csv
+
 #binaries
 blurc
 thresc
