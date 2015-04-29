@@ -1,7 +1,7 @@
 
-CFLAGS = 
+CFLAGS = -g
 
-LFLAGS= -lpthread -lrt -lm 
+LFLAGS= -g -lpthread -lrt -lm
 
 all: blurc thresc
 
@@ -15,7 +15,7 @@ thresc: thresmain.o ppmio.o thresfilter.o
 	mpicc   -o $@ thresmain.o ppmio.o thresfilter.o $(LFLAGS)
 
 %.o:%.c
-	mpicc -c -o $@ $^
+	mpicc -c -o $@ $^ $(CFLAGS)
 
 arc:
 	tar cf - *.c *.h *.f90 Makefile Makefile.sgi|gzip - > filters.tar.gz
