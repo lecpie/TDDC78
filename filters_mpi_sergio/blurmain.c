@@ -175,7 +175,18 @@ int main (int argc, char ** argv) {
     
 	if(me == MASTER){
 		//printf("Main Master Filtering took: %g sec, s\n", (etime.tv_sec  - stime.tv_sec) + 1e-9*(etime.tv_nsec  - stime.tv_nsec)) ;
-		printf("MASTER mpi time: %g sec\n",MPI_Wtime()-start);
+		end = MPI_Wtime()-start;
+		printf("MASTER mpi time: %g sec\n",end);
+		
+		//print the time on the file
+		FILE * fp;
+		char * f;
+		f = "measures.csv";
+		fp = fopen(f, "a");// "w" means that we are going to write on this file, "a" appends
+		fprintf(fp,"%g\n",end); // just write down the elapsed seconds: we'll make only copy&paste to the excel :)
+		fclose(fp);
+		
+		
 		/* write result */
 		printf("Writing output file\n");
 		if(write_ppm (argv[3], xsize, ysize,  (char *)src) != 0)
