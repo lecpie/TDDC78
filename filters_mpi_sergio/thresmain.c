@@ -99,10 +99,19 @@ int main (int argc, char ** argv) {
     thresfilter(xsize, sendcounts[me]/xsize, buffer_receiver);
 
 	MPI_Gatherv ( &buffer_receiver, sendcounts[me], mpi_pixel_type, &src, sendcounts, displace, mpi_pixel_type, 0 , MPI_COMM_WORLD);
-	
+	end = MPI_Wtime()-start;
+
 	if(me== MASTER){
-		printf("MASTER mpi time: %g sec\n",MPI_Wtime()-start);
-		/* write result */
+		printf("MASTER mpi time: %g sec\n",end);
+		
+		//print the time on the file
+		FILE * fp;
+		char * f;
+		f = "measures.csv";
+		fp = fopen(f, "a");// "w" means that we are going to write on this file, "a" appends
+		fprintf(fp,"%g\n",end); // just write down the elapsed seconds: we'll make only copy&paste to the excel :)
+		fclose(fp);
+		
 		printf("Writing output file\n");
 		
 		if(write_ppm (argv[2], xsize, ysize, (char *)src) != 0)
