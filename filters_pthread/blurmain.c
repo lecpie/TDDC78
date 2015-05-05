@@ -41,12 +41,13 @@ int main (int argc, char ** argv) {
 
     /* filter */
     get_gauss_weights(radius, w);
+    pixel * dst = malloc (sizeof(pixel) * xsize * ysize);
 
     printf("Calling filter\n");
 
     clock_gettime(CLOCK_REALTIME, &stime);
 
-    blurfilter(xsize, ysize, src, radius, w);
+    blurfilter(xsize, ysize, src, dst, radius, w);
 
     clock_gettime(CLOCK_REALTIME, &etime);
 
@@ -56,7 +57,7 @@ int main (int argc, char ** argv) {
     /* write result */
     printf("Writing output file\n");
     
-    if(write_ppm (argv[3], xsize, ysize, (char *)src) != 0)
+    if(write_ppm (argv[3], xsize, ysize, (char *)dst) != 0)
       exit(1);
 
 

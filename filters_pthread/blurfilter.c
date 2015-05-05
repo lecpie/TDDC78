@@ -36,7 +36,8 @@ typedef struct param_t {
 // Global shared variables
 
 pixel * image,
-      * image_swap;
+      * image_swap,
+      * final;
 
 const double * wgt;
 
@@ -68,72 +69,63 @@ void * blurfilter_thr  (void * arg)
             g = wgt[0] * pix(image, x, y, xsiz)->g;
             b = wgt[0] * pix(image, x, y, xsiz)->b;
             n = wgt[0];
-            for ( wi = 1; wi <= rad; ++wi) {
-                wc = wgt[wi];
-                x2 = x - wi;
-                if(x2 >= 0) {
-                    r += wc * pix(image, x2, y, xsiz)->r;
-                    g += wc * pix(image, x2, y, xsiz)->g;
-                    b += wc * pix(image, x2, y, xsiz)->b;
-                    n += wc;
-                }
-                x2 = x + wi;
-                if(x2 < xsiz) {
-                    r += wc * pix(image, x2, y, xsiz)->r;
-                    g += wc * pix(image, x2, y, xsiz)->g;
-                    b += wc * pix(image, x2, y, xsiz)->b;
-                    n += wc;
-                }
-            }
-            pix(image_swap,x,y, xsiz)->r = r/n;
-            pix(image_swap,x,y, xsiz)->g = g/n;
-            pix(image_swap,x,y, xsiz)->b = b/n;
 
-        }
-    }
-
-    pthread_mutex_lock(&lock_lins);
-
-    ++lin_done;
-    while (lin_done != NUMTHREAD) {
-        pthread_cond_wait(&cond_lins, &lock_lins);
-    }
-    pthread_cond_signal(&cond_lins);
-
-    pthread_mutex_unlock(&lock_lins);
-
-    for (y = 0; y < ysiz; ++y) {
-        for (x = start_col; x < end_x; ++x) {
-            r = wgt[0] * pix(image_swap, x, y, xsiz)->r;
-            g = wgt[0] * pix(image_swap, x, y, xsiz)->g;
-            b = wgt[0] * pix(image_swap, x, y, xsiz)->b;
-            n = wgt[0];
             for (wi = 1; wi <= rad; ++wi) {
                 wc = wgt[wi];
                 y2 = y - wi;
                 if(y2 >= 0) {
-                    r += wc * pix(image_swap, x, y2, xsiz)->r;
-                    g += wc * pix(image_swap, x, y2, xsiz)->g;
-                    b += wc * pix(image_swap, x, y2, xsiz)->b;
+                    r += wc * pix(image, x, y2, xsiz)->r;
+                    g += wc * pix(image, x, y2, xsiz)->g;
+                    b += wc * pix(image, x, y2, xsiz)->b;
                     n += wc;
                 }
                 y2 = y + wi;
                 if(y2 < ysiz) {
-                    r += wc * pix(image_swap, x, y2, xsiz)->r;
-                    g += wc * pix(image_swap, x, y2, xsiz)->g;
-                    b += wc * pix(image_swap, x, y2, xsiz)->b;
+                    r += wc * pix(image, x, y2, xsiz)->r;
+                    g += wc * pix(image, x, y2, xsiz)->g;
+                    b += wc * pix(image, x, y2, xsiz)->b;
                     n += wc;
                 }
             }
-            pix(image,x,y, xsiz)->r = r/n;
-            pix(image,x,y, xsiz)->g = g/n;
-            pix(image,x,y, xsiz)->b = b/n;
+
+            pix(image_swap,x,y, xsiz)->r = r/n;
+            pix(image_swap,x,y, xsiz)->g = g/n;
+            pix(image_swap,x,y, xsiz)->b = b/n;
         }
     }
 
+    for (y = start_lin; y < end_y; ++y) {
+        for (x = 0; x < xsiz; ++x) {
+            r = wgt[0] * pix(image_swap, x, y, xsiz)->r;
+            g = wgt[0] * pix(image_swap, x, y, xsiz)->g;
+            b = wgt[0] * pix(image_swap, x, y, xsiz)->b;
+            n = wgt[0];
+            for ( wi = 1; wi <= rad; ++wi) {
+                wc = wgt[wi];
+                x2 = x - wi;
+                if(x2 >= 0) {
+                    r += wc * pix(image_swap, x2, y, xsiz)->r;
+                    g += wc * pix(image_swap, x2, y, xsiz)->g;
+                    b += wc * pix(image_swap, x2, y, xsiz)->b;
+                    n += wc;
+                }
+                x2 = x + wi;
+                if(x2 < xsiz) {
+                    r += wc * pix(image_swap, x2, y, xsiz)->r;
+                    g += wc * pix(image_swap, x2, y, xsiz)->g;
+                    b += wc * pix(image_swap, x2, y, xsiz)->b;
+                    n += wc;
+                }
+            }
+            pix(final,x,y, xsiz)->r = r/n;
+            pix(final,x,y, xsiz)->g = g/n;
+            pix(final,x,y, xsiz)->b = b/n;
+
+        }
+    }
 }
 
-void blurfilter(const int xsize, const int ysize, pixel* src, const int radius, const double *w)
+void blurfilter(const int xsize, const int ysize, pixel* src, pixel * dst, const int radius, const double *w)
 {
     int size = xsize * ysize;
 
@@ -143,6 +135,7 @@ void blurfilter(const int xsize, const int ysize, pixel* src, const int radius, 
     image = src;
     rad = radius;
     wgt = w;
+    final = dst;
 
     image_swap = (pixel *) malloc(sizeof(pixel) * size);
 
