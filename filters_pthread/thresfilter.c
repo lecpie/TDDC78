@@ -5,7 +5,7 @@
 
 #define uint unsigned int
 
-#define NUMTHREAD 16
+#define NUMTHREAD 3
 
 typedef struct param_t {
     int strt_line;

@@ -28,9 +28,7 @@ pixel* pix(pixel* image, const int xx, const int yy, const int xsize)
 
 typedef struct param_t {
     int start_lin;
-    int start_col;
     int n_lin;
-    int n_col;
 } param_t;
 
 // Global shared variables
@@ -43,25 +41,25 @@ const double * wgt;
 
 int xsiz, ysiz, rad;
 
-int lin_done = 0;
-pthread_mutex_t lock_lins;
-pthread_cond_t  cond_lins;
-
 void * blurfilter_thr  (void * arg)
 {
     param_t * param = (param_t *) arg;
 
     int start_lin = param->start_lin,
-        start_col = param->start_col,
-        n_lin     = param->n_lin,
-        n_col     = param->n_col;
+        n_lin     = param->n_lin;
 
-    int end_y = start_lin + n_lin,
-        end_x = start_col + n_col;
+    int end_y = start_lin + n_lin;
 
     int y, x, wi, x2, y2;
 
     double r, g, b, n, wc;
+   /*     struct timespec stime, etime;
+
+
+    clock_gettime(CLOCK_REALTIME, &stime);*/
+    
+   printf("start line : %d, end line: %d , rad : %d\n",start_lin, end_y, rad);
+
 
     for (y = start_lin; y < end_y; ++y) {
         for (x = 0; x < xsiz; ++x) {
@@ -93,7 +91,6 @@ void * blurfilter_thr  (void * arg)
             pix(image_swap,x,y, xsiz)->b = b/n;
         }
     }
-
     for (y = start_lin; y < end_y; ++y) {
         for (x = 0; x < xsiz; ++x) {
             r = wgt[0] * pix(image_swap, x, y, xsiz)->r;
@@ -123,6 +120,9 @@ void * blurfilter_thr  (void * arg)
 
         }
     }
+
+
+    
 }
 
 void blurfilter(const int xsize, const int ysize, pixel* src, pixel * dst, const int radius, const double *w)
@@ -145,20 +145,14 @@ void blurfilter(const int xsize, const int ysize, pixel* src, pixel * dst, const
     int i;
 
     int n_lin = ysize / NUMTHREAD,
-        n_col = xsize / NUMTHREAD,
         lin_lft = ysize % NUMTHREAD,
-        col_lft = xsize % NUMTHREAD,
-        start_lin = 0,
-        start_col = 0;
+        start_lin = 0;
 
 
     for (i = 0; i < NUMTHREAD; ++i) {
-        args[i].n_col = (col_lft > i) ? n_col + 1 : n_col;
         args[i].n_lin = (lin_lft > i) ? n_lin + 1 : n_lin;
-        args[i].start_col = start_col;
         args[i].start_lin = start_lin;
 
-        start_col += args[i].n_col;
         start_lin += args[i].n_lin;
 
         pthread_create(threads + i, NULL, blurfilter_thr, args + i);
