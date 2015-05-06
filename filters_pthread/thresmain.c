@@ -6,17 +6,24 @@
 #include "ppmio.h"
 #include "thresfilter.h"
 
+#define NUMTHREAD 16
+
 int main (int argc, char ** argv) {
     int xsize, ysize, colmax;
     pixel * src = (pixel *) malloc(sizeof(pixel) * MAX_PIXELS);
     struct timespec stime, etime;
+    
+    unsigned nthread = NUMTHREAD;
 
     /* Take care of the arguments */
 
-    if (argc != 3) {
+    if (argc < 3 || argc > 4) {
 	fprintf(stderr, "Usage: %s infile outfile\n", argv[0]);
 	exit(1);
     }
+    
+    if (argc == 4)
+        nthread = atoi(argv[3]);
 
     /* read file */
     if(read_ppm (argv[1], &xsize, &ysize, &colmax, (char *) src) != 0)
@@ -31,7 +38,7 @@ int main (int argc, char ** argv) {
 
     clock_gettime(CLOCK_REALTIME, &stime);
 
-    thresfilter(xsize, ysize, src);
+    thresfilter(xsize, ysize, src, nthread);
 
     clock_gettime(CLOCK_REALTIME, &etime);
 
