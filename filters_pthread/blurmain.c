@@ -7,6 +7,7 @@
 #include "gaussw.h"
 
 #define MAX_RAD 1000
+#define NUMTHREAD 16
 
 int main (int argc, char ** argv) {
    int radius;
@@ -15,13 +16,17 @@ int main (int argc, char ** argv) {
     struct timespec stime, etime;
 
     double w[MAX_RAD];
+    unsigned nthread = NUMTHREAD;
 
     /* Take care of the arguments */
 
-    if (argc != 4) {
+    if (argc != 4 && argc != 5) {
 	fprintf(stderr, "Usage: %s radius infile outfile\n", argv[0]);
 	exit(1);
     }
+    if (argc == 5)
+		nthread = atoi(argv[4]);
+    
     radius = atoi(argv[1]);
     if((radius > MAX_RAD) || (radius < 1)) {
 	fprintf(stderr, "Radius (%d) must be greater than zero and less then %d\n", radius, MAX_RAD);
@@ -47,7 +52,7 @@ int main (int argc, char ** argv) {
 
     clock_gettime(CLOCK_REALTIME, &stime);
 
-    blurfilter(xsize, ysize, src, dst, radius, w);
+    blurfilter(xsize, ysize, src, dst, radius, w, nthread);
 
     clock_gettime(CLOCK_REALTIME, &etime);
 

@@ -11,9 +11,6 @@
 #include "blurfilter.h"
 #include "ppmio.h"
 
-
-#define NUMTHREAD 16
-
 pixel* pix(pixel* image, const int xx, const int yy, const int xsize)
 {
     register int off = xsize*yy + xx;
@@ -40,6 +37,8 @@ pixel * image,
 const double * wgt;
 
 int xsiz, ysiz, rad;
+
+unsigned numthread;
 
 void * blurfilter_thr  (void * arg)
 {
@@ -125,7 +124,7 @@ void * blurfilter_thr  (void * arg)
     
 }
 
-void blurfilter(const int xsize, const int ysize, pixel* src, pixel * dst, const int radius, const double *w)
+void blurfilter(const int xsize, const int ysize, pixel* src, pixel * dst, const int radius, const double *w, unsigned nthread)
 {
     int size = xsize * ysize;
 
@@ -136,20 +135,21 @@ void blurfilter(const int xsize, const int ysize, pixel* src, pixel * dst, const
     rad = radius;
     wgt = w;
     final = dst;
+    numthread = nthread;
 
     image_swap = (pixel *) malloc(sizeof(pixel) * size);
 
-    pthread_t threads[NUMTHREAD];
-    param_t   args   [NUMTHREAD];
+    pthread_t * threads = malloc(numthread * sizeof(pthread_t));
+    param_t   * args    = malloc(numthread * sizeof(param_t));
 
     int i;
 
-    int n_lin = ysize / NUMTHREAD,
-        lin_lft = ysize % NUMTHREAD,
+    int n_lin     = ysize / numthread,
+        lin_lft   = ysize % numthread,
         start_lin = 0;
 
 
-    for (i = 0; i < NUMTHREAD; ++i) {
+    for (i = 0; i < numthread; ++i) {
         args[i].n_lin = (lin_lft > i) ? n_lin + 1 : n_lin;
         args[i].start_lin = start_lin;
 
@@ -158,7 +158,7 @@ void blurfilter(const int xsize, const int ysize, pixel* src, pixel * dst, const
         pthread_create(threads + i, NULL, blurfilter_thr, args + i);
     }
 
-    for (i = 0; i < NUMTHREAD; ++i)
+    for (i = 0; i < numthread; ++i)
         pthread_join(threads[i], NULL);
 
     free(image_swap);
