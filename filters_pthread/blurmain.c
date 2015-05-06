@@ -53,6 +53,14 @@ int main (int argc, char ** argv) {
 
     printf("Filtering took: %g secs\n", (etime.tv_sec  - stime.tv_sec) +
 	   1e-9*(etime.tv_nsec  - stime.tv_nsec)) ;
+double end =  1e-9*(etime.tv_nsec  - stime.tv_nsec);
+		//print the time on the file
+		FILE * fp;
+		char * f;
+		f = "measures.csv";
+		fp = fopen(f, "a");// "w" means that we are going to write on 
+		fprintf(fp,"%g\n",end); // just write down the elapsed seconds: we'll make only copy&paste to the excel :)
+		fclose(fp);
 
     /* write result */
     printf("Writing output file\n");
