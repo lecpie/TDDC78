@@ -5,7 +5,6 @@
 
 #define uint unsigned int
 
-#define NUMTHREAD 16
 
 typedef struct param_t {
     int strt_line;
@@ -22,11 +21,12 @@ pthread_mutex_t thres_div_lock;
 pthread_cond_t calc_ready;
 int calc_done = 0;
 int div_done  = 0;
+unsigned numthread;
 
 void * thresfilter_lines (void * void_params)
 {
     int startline = ((param_t *) void_params)->strt_line,
-        n         = ((param_t *)        void_params)->n_line;
+        n         = ((param_t *) void_params)->n_line;
 
     long long unsigned int sum = 0;
 
@@ -43,7 +43,7 @@ void * thresfilter_lines (void * void_params)
     thresc += sum;
     ++calc_done;
 
-    while (calc_done != NUMTHREAD) {
+    while (calc_done != numthread) {
         pthread_cond_wait(&calc_ready, &thres_calc_lock);
     }
     pthread_cond_signal(&calc_ready);
@@ -71,27 +71,28 @@ void * thresfilter_lines (void * void_params)
 
 }
 
-void thresfilter(const int xsize, const int ysize, pixel* src)
+void thresfilter(const int xsize, const int ysize, pixel* src, unsigned nthread)
 {
-    param_t   params  [NUMTHREAD];
-    pthread_t threads [NUMTHREAD];
+    param_t   * params  = malloc (sizeof(param_t)   * nthread);
+    pthread_t * threads = malloc (sizeof(pthread_t) * nthread);
 
     // Initializing global shared variables
 
     xsiz = xsize;
     ysiz = ysize;
     image = src;
+    numthread = nthread;
 
     // Calculate number of line to handle per thread
 
-    int n_lin   = ysize / NUMTHREAD,
-        lft_lin = ysize % NUMTHREAD;
+    int n_lin   = ysize / nthread,
+        lft_lin = ysize % nthread;
 
     // Launching all threads with right parameters
 
     int i, start;
 
-    for (i = 0, start = 0; i < NUMTHREAD; ++i) {
+    for (i = 0, start = 0; i < nthread; ++i) {
 
         // Store parameters in a struct to send them as one parameter
         params[i].strt_line = start;
@@ -106,7 +107,7 @@ void thresfilter(const int xsize, const int ysize, pixel* src)
 
     // Waiting all threads
 
-    for (i = 0; i < NUMTHREAD; ++i) {
+    for (i = 0; i < nthread; ++i) {
         pthread_join(threads[i], NULL);
     }
 }
