@@ -58,7 +58,7 @@ int main (int argc, char ** argv) {
 
     printf("Filtering took: %g secs\n", (etime.tv_sec  - stime.tv_sec) +
 	   1e-9*(etime.tv_nsec  - stime.tv_nsec)) ;
-double end =  1e-9*(etime.tv_nsec  - stime.tv_nsec);
+double end = (etime.tv_sec  - stime.tv_sec) + 1e-9*(etime.tv_nsec  - stime.tv_nsec);
 		//print the time on the file
 		FILE * fp;
 		char * f;
