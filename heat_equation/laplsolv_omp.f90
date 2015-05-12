@@ -1,4 +1,5 @@
 program laplsolv
+use omp_lib
 !-----------------------------------------------------------------------
 ! Serial program for solving the heat conduction problem 
 ! on a square using the Jacobi method. 
@@ -8,11 +9,13 @@ program laplsolv
   integer, parameter                  :: n=1000, maxiter=1000
   double precision,parameter          :: tol=1.0E-3
   double precision,dimension(0:n+1,0:n+1) :: T
-  double precision,dimension(n)       :: tmp1,tmp2
+  double precision,dimension(n)       :: tmp1,tmp2,tmp3
   double precision                    :: error,x
   real                                :: t1,t0
-  integer                             :: i,j,k
+  integer                             :: i,j,k,startcol,endcol,nproc,rem,mychunksize,last
   character(len=20)                   :: str
+  double precision, dimension (:,:), allocatable :: firstcols, lastcols 
+  integer, dimension(:), allocatable :: startcols_i, endcols_i
   
   ! Set boundary conditions and initial values for the unknowns
   T=0.0D0
@@ -23,38 +26,37 @@ program laplsolv
 
   ! Solve the linear system of equations using the Jacobi method
   call cpu_time(t0)
-  
-  do k=1,maxiter
-     
-     tmp1=T(1:n,0)
-     error=0.0D0
-     
-     do j=1,n
-        tmp2=T(1:n,j)
-        T(1:n,j)=(T(0:n-1,j)+T(2:n+1,j)+T(1:n,j+1)+tmp1)/4.0D0
-        error=max(error,maxval(abs(tmp2-T(1:n,j))))
-        tmp1=tmp2
-     end do
-     
-     if (error<tol) then
-        exit
-     end if
-     
-  end do
-  
-  call cpu_time(t1)
+	nproc = omp_get_max_threads()
+	
+   print *,'total number of threads : ', omp_get_max_threads()
+	
+	allocate(startcols_i(nproc),endcols_i(nproc), firstcols(nproc,n), lastcols(nproc,n))
+	
+	rem = MOD(n,nproc)
+	mychunksize = n / nproc
+	last = 0
+	do i=0,nproc-1
+	print *, i
+		startcols_i(i) = last
+		endcols_i(i) = last + mychunksize
+		
+		if (i < rem) then
+			endcols_i(i) = endcols_i(i) + 1
+		end if
+		
+		last = endcols_i(i)
 
-  write(unit=*,fmt=*) 'Time:',t1-t0,'Number of Iterations:',k
-  write(unit=*,fmt=*) 'Temperature of element T(1,1)  =',T(1,1)
+		firstcols(1:n,i) =  T(1:n, startcols_i(i))
+		!lastcols(1:n,i) = T(1:n, endcols_i(i)+1)
+		
+		
+		  print *,'Process ', i, ' starts with ', startcols_i(i), ' and ends with ',  endcols_i(i)
 
-  ! Uncomment the next part if you want to write the whole solution
-  ! to a file. Useful for plotting. 
-  
-  !open(unit=7,action='write',file='result.dat',status='unknown')
-  !write(unit=str,fmt='(a,i6,a)') '(',N,'F10.6)'
-  !do i=0,n+1
-  !   write (unit=7,fmt=str) T(i,0:n+1)  
-  !end do
-  !close(unit=7)
+
+			
+	end do
+	
+
+
   
 end program laplsolv
