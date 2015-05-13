@@ -17,6 +17,7 @@ blurc
 thresc
 laplsolv
 laplsolv_omp
+particles
 
 # Object files
 *.o
