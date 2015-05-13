@@ -37,20 +37,20 @@ use omp_lib
 	last = 1
 	do i=0,nproc-1
 	print *, i
-		startcols_i(i) = last-1
-		endcols_i(i) = last + mychunksize
+                startcols_i(i) = last
+                endcols_i(i) = last + mychunksize - 1
 		
 		if (i < rem) then
-			endcols_i(i) = endcols_i(i) + 1
+                        endcols_i(i) = endcols_i(i) + 1
 		end if
 		
-		last = endcols_i(i)
+                last = 1 + endcols_i(i)
 
-		!firstcols(1:n,i) =  T(1:n, startcols_i(i))
-		!lastcols(1:n,i) = T(1:n, endcols_i(i))
+                firstcols(1:n,i) = T(1:n, startcols_i(i) - 1)
+                lastcols(1:n,i)  = T(1:n, endcols_i(i) + 1)
 		
 		
-		  print *,'Process ', i, ' starts with ', startcols_i(i), ' and ends with ',  endcols_i(i)
+                print *,'Process ', i, ' starts with ', startcols_i(i), ' and ends with ',  endcols_i(i)
 
 
 	end do
