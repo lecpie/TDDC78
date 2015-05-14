@@ -7,6 +7,7 @@ use omp_lib
 ! Modified by Berkant Savas (besav@math.liu.se) April 2006
 !-----------------------------------------------------------------------
   integer, parameter                  :: n=1000, maxiter=1000
+  character(len=20), parameter		  :: filename = "measures.csv"
   double precision,parameter          :: tol=1.0E-3
   double precision,dimension(0:n+1,0:n+1) :: T
   double precision,dimension(n)       :: tmp1,tmp2,tmp3
@@ -16,6 +17,7 @@ use omp_lib
   character(len=20)                   :: str
   double precision, dimension (:,:), allocatable :: firstcols, lastcols 
   integer, dimension(:), allocatable :: startcols_i, endcols_i
+  logical :: exist
   
   ! Set boundary conditions and initial values for the unknowns
   T=0.0D0
@@ -44,14 +46,13 @@ use omp_lib
           last = 1 + endcols_i(i)
 	end do
 	
-		! Solve the linear system of equations using the Jacobi method
+	! Solve the linear system of equations using the Jacobi method
 
 	t0 =   omp_get_wtime()
 
   do k=1,maxiter
      
    !$omp parallel  private(tmp1,tmp2,j,myid) 
-   !reduction(MAX:error)
    
     myid = omp_get_thread_num()
           
@@ -74,7 +75,6 @@ use omp_lib
      !$omp atomic
      error=max(error,maxval(abs(tmp2-T(1:n,j))))
     
-     ! 0.49886012620009207
      !$omp end parallel
      if (error<tol) then
         exit
@@ -82,10 +82,18 @@ use omp_lib
      
   end do
   t1 = omp_get_wtime()
-  !call cpu_time(t1)
 
   write(unit=*,fmt=*) 'Time:',t1-t0,'Number of Iterations:',k
   write(unit=*,fmt=*) 'Temperature of element T(1,1)  =',T(1,1)
-		
+  
+  inquire(file=filename, exist=exist)
+  if (exist) then
+    open(12, file=filename, status="old", position="append", action="write")
+  else
+    open(12, file=filename, status="new", action="write")
+  end if
+  
+  write(12, *) t1-t0
+  close(12)
   
 end program laplsolv
