@@ -1,4 +1,4 @@
-CC=ifort
+CC=gfortran
 CFLAGS=
 OMPFLAGS=-fopenmp
 

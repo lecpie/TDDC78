@@ -36,6 +36,7 @@ program laplsolv
         tmp1=tmp2
      end do
      
+     print *, error
      if (error<tol) then
         exit
      end if
