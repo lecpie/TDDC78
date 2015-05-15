@@ -6,7 +6,7 @@ use omp_lib
 ! Written by Fredrik Berntsson (frber@math.liu.se) March 2003
 ! Modified by Berkant Savas (besav@math.liu.se) April 2006
 !-----------------------------------------------------------------------
-  integer, parameter                  :: n=1000, maxiter=1000
+  integer, parameter                  :: n=10000, maxiter=1000
   character(len=20), parameter		  :: filename = "measures.csv"
   double precision,parameter          :: tol=1.0E-3
   double precision,dimension(0:n+1,0:n+1) :: T
