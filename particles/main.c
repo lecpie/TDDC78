@@ -41,6 +41,20 @@ int main (int argc, char ** argv)
 {
     MPI_Init(&argc, &argv);
 
+    /* MPI_DATATYPE : mpi_particle_t */
+    MPI_Datatype mpi_particle_t;
+    const int nitems=4;
+    int          blocklengths[4] = {sizeof(float), sizeof(float), sizeof(float), sizeof(float)};
+    MPI_Datatype types[4] = {MPI_FLOAT, MPI_FLOAT, MPI_FLOAT, MPI_FLOAT};
+    MPI_Aint     offsets[4];
+
+    offsets[0] = 0;
+    offsets[1] = sizeof(float);
+    offsets[2] = 2 * sizeof(float);
+    offsets[3] = 3 * sizeof(float);
+    MPI_Type_create_struct(nitems, blocklengths, offsets, types, &mpi_particle_t);
+    MPI_Type_commit(&mpi_particle_t);
+
     int id, np, i;
 
     MPI_Comm_size( MPI_COMM_WORLD, &np );
