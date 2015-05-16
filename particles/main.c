@@ -34,7 +34,9 @@ float getEProc (int id, int np)
 
 int getProcess(float y, int np)
 {
-    return (int) (y / (BOX_VERT_SIZE / (float) np));
+	int processo = (int) (y / (BOX_VERT_SIZE / (float) np));
+	//printf("processo : %d, %g\n",processo, y);
+    return processo;
 }
 
 int main (int argc, char ** argv)
@@ -74,10 +76,10 @@ int main (int argc, char ** argv)
 	for(i=0; i<np; i++)
 		particle_buffers[i] = malloc(sizeof(particle_t)*500);
 	
-	particle_buffers_recv = malloc (sizeof(particle_t *) * np );
+/*	particle_buffers_recv = malloc (sizeof(particle_t *) * np );
 
 	for(i=0; i<np; i++)
-		particle_buffers_recv[i] = malloc(sizeof(particle_t)*500);
+		particle_buffers_recv[i] = malloc(sizeof(particle_t)*500);*/
 			
    // buffer_sizes      = malloc (sizeof(int) * np );
 	
@@ -123,7 +125,7 @@ int main (int argc, char ** argv)
     
     //TODO  < MAXTIME
     // For each time spec
-    for (itime = 0, timestep = 0.0; itime < 1; ++itime, timestep += STEP_SIZE) {
+    for (itime = 0, timestep = 0.0; itime < MAXTIME; ++itime, timestep += STEP_SIZE) {
 
         // For each particle
         for (ipart = 0; ipart < npart; ++ipart) {
@@ -164,7 +166,6 @@ int main (int argc, char ** argv)
             momentum += wall_collide(&particles[ipart].pcord, wall);
 
             int process = getProcess(particles[ipart].pcord.y, np);
-			//buffer_sizes[process] = 0;
             if (process != id) {
 				buffer_sizes[process] += 1;
 				particle_buffers[process][buffer_sizes[process]] = particles[ipart];
@@ -181,14 +182,16 @@ int main (int argc, char ** argv)
         for(p = 0;  p < np; p++){
 			if(p != id){
 				MPI_Send(&buffer_sizes[p], 1, MPI_INT, p, 0, MPI_COMM_WORLD);
-				MPI_Send(particle_buffers, buffer_sizes[p], mpi_particle_t, p, 0, MPI_COMM_WORLD);
+				MPI_Send(particle_buffers[p], buffer_sizes[p], mpi_particle_t, p, 0, MPI_COMM_WORLD);
 				printf(" me %d have sent to process %d , #particles %d\n", id, p, buffer_sizes[p]);
-
+				printf("me  %d npart %d\n",id,npart);
 				
 				int size;
 				MPI_Recv(&size, 1, MPI_INT, p, 0, MPI_COMM_WORLD, &status);
-				MPI_Recv(particle_buffers_recv, size, mpi_particle_t, p, 0, MPI_COMM_WORLD, &status);
+				MPI_Recv(particles  + npart, size, mpi_particle_t, p, 0, MPI_COMM_WORLD, &status);
 				printf(" me %d have received from process %d , #particles %d\n", id, p, size);
+				npart += size;
+				printf("me  %d npart %d\n",id,npart);
 		}
 		}
 
