@@ -181,12 +181,14 @@ int main (int argc, char ** argv)
         for(p = 0;  p < np; p++){
 			if(p != id){
 				MPI_Send(&buffer_sizes[p], 1, MPI_INT, p, 0, MPI_COMM_WORLD);
-				MPI_Send(particle_buffers, 4*buffer_sizes[p], MPI_FLOAT, p, 0, MPI_COMM_WORLD);
+				MPI_Send(particle_buffers, buffer_sizes[p], mpi_particle_t, p, 0, MPI_COMM_WORLD);
+				printf(" me %d have sent to process %d , #particles %d\n", id, p, buffer_sizes[p]);
+
+				
 				int size;
 				MPI_Recv(&size, 1, MPI_INT, p, 0, MPI_COMM_WORLD, &status);
-
-				MPI_Recv(particle_buffers_recv, 4*size, MPI_FLOAT, p, 0, MPI_COMM_WORLD, &status);
-				printf(" me %d have to send to process %d , #particles %d\n", id, p,buffer_sizes[p]);
+				MPI_Recv(particle_buffers_recv, size, mpi_particle_t, p, 0, MPI_COMM_WORLD, &status);
+				printf(" me %d have received from process %d , #particles %d\n", id, p, size);
 		}
 		}
 
