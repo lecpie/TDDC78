@@ -22,7 +22,7 @@ float rand_max (float max)
 
 float getBProc (int id, int np)
 {
-    return id * (BOX_VERT_SIZE / (float) np);
+    return ( (float)id * (BOX_VERT_SIZE /  (float)np));
 }
 
 float getEProc (int id, int np)
@@ -32,26 +32,35 @@ float getEProc (int id, int np)
 
 int getProcess(float y, int np)
 {
-    return (int) (BOX_VERT_SIZE / np);
+    return (int) (y / (BOX_VERT_SIZE / (float) np));
 }
 
 int main (int argc, char ** argv)
 {
+	    int id, np, i;
+
     MPI_Init(&argc, &argv);
-
-    int id, np, i;
-
     MPI_Comm_size( MPI_COMM_WORLD, &np );
     MPI_Comm_rank( MPI_COMM_WORLD, &id );
+	MPI_Status status;
+    particle_t * particles, **particle_buffers, ** particle_buffers_recv;
+//    int * buffer_sizes;
+   int buffer_sizes[np];
+   for( i= 0; i< np; i++)
+	buffer_sizes[i] = 0;
+	
+    particle_buffers = malloc (sizeof(particle_t *) * np );
+    
+	for(i=0; i<np; i++)
+		particle_buffers[i] = malloc(sizeof(particle_t)*500);
+	
+	particle_buffers_recv = malloc (sizeof(particle_t *) * np );
 
-    particle_t * particles, **particle_buffers;
-    int * buffer_sizes;
-
-    particle_buffers = malloc (sizeof(particle_t *) * np);
-    buffer_sizes      = malloc (sizeof(int) * np);
-
-
-
+	for(i=0; i<np; i++)
+		particle_buffers_recv[i] = malloc(sizeof(particle_t)*500);
+			
+   // buffer_sizes      = malloc (sizeof(int) * np );
+	
     cord_t wall;
 
     unsigned ipart, jpart, npart, itime;
@@ -77,6 +86,7 @@ int main (int argc, char ** argv)
     float miny = getBProc(id, np),
           maxy = getEProc(id, np);
 
+	
     for (ipart = 0; ipart < npart; ++ipart) {
 
         // TODO Check what initial values should be
@@ -90,9 +100,10 @@ int main (int argc, char ** argv)
         particles[ipart].pcord.vx = r * cos(t);
         particles[ipart].pcord.vy = r * sin(t);
     }
-
+    
+    //TODO  < MAXTIME
     // For each time spec
-    for (itime = 0, timestep = 0.0; itime < MAXTIME; ++itime, timestep += STEP_SIZE) {
+    for (itime = 0, timestep = 0.0; itime < 1; ++itime, timestep += STEP_SIZE) {
 
         // For each particle
         for (ipart = 0; ipart < npart; ++ipart) {
@@ -127,21 +138,42 @@ int main (int argc, char ** argv)
         }
 
         //Comm if needed
-
+			
         for (ipart = 0; ipart < npart; ++ipart) {
             // Check for wall interaction and add the momentum
             momentum += wall_collide(&particles[ipart].pcord, wall);
 
-            int process;
-            if ((process = getProcess(particles[ipart].pcord.y, np)) != id) {
-                MPI_Send(particles + ipart, 4, MPI_FLOAT, process, 0, MPI_COMM_WORLD);
+            int process = getProcess(particles[ipart].pcord.y, np);
+			//buffer_sizes[process] = 0;
+            if (process != id) {
+				buffer_sizes[process] += 1;
+				particle_buffers[process][buffer_sizes[process]] = particles[ipart];
+				
+                //MPI_Send(particles + ipart, 4, MPI_FLOAT, process, 0, MPI_COMM_WORLD);
+				//printf(" particle %d moves to process %d , total  #particles %d\n", ipart,process,buffer_sizes[process]);
 
                 // Swap with the last particle and remove the last
                 particles[ipart] = particles[--npart];
             }
         }
+        
+        int p;
+        for(p = 0;  p < np; p++){
+			if(p != id){
+				MPI_Send(&buffer_sizes[p], 1, MPI_INT, p, 0, MPI_COMM_WORLD);
+				MPI_Send(particle_buffers, 4*buffer_sizes[p], MPI_FLOAT, p, 0, MPI_COMM_WORLD);
+				int size;
+				MPI_Recv(&size, 1, MPI_INT, p, 0, MPI_COMM_WORLD, &status);
 
+				MPI_Recv(particle_buffers_recv, 4*size, MPI_FLOAT, p, 0, MPI_COMM_WORLD, &status);
+				printf(" me %d have to send to process %d , #particles %d\n", id, p,buffer_sizes[p]);
+		}
+		}
 
+/*		for(p = 0; p!= id && p < np; p++){
+			MPI_Recv(particle_buffers_recv, 4*500, MPI_FLOAT, p, 0, MPI_COMM_WORLD, &status);
+			//printf(" process %d , #particles %d\n", p,buffer_sizes[p]);
+		}*/
 
     }
 
