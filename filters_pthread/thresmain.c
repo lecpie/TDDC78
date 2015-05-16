@@ -6,17 +6,24 @@
 #include "ppmio.h"
 #include "thresfilter.h"
 
+#define NUMTHREAD 16
+
 int main (int argc, char ** argv) {
     int xsize, ysize, colmax;
     pixel * src = (pixel *) malloc(sizeof(pixel) * MAX_PIXELS);
     struct timespec stime, etime;
+    
+    unsigned nthread = NUMTHREAD;
 
     /* Take care of the arguments */
 
-    if (argc != 3) {
+    if (argc < 3 || argc > 4) {
 	fprintf(stderr, "Usage: %s infile outfile\n", argv[0]);
 	exit(1);
     }
+    
+    if (argc == 4)
+        nthread = atoi(argv[3]);
 
     /* read file */
     if(read_ppm (argv[1], &xsize, &ysize, &colmax, (char *) src) != 0)
@@ -31,13 +38,21 @@ int main (int argc, char ** argv) {
 
     clock_gettime(CLOCK_REALTIME, &stime);
 
-    thresfilter(xsize, ysize, src);
+    thresfilter(xsize, ysize, src, nthread);
 
     clock_gettime(CLOCK_REALTIME, &etime);
 
     printf("Filtering took: %g secs\n", (etime.tv_sec  - stime.tv_sec) +
 	   1e-9*(etime.tv_nsec  - stime.tv_nsec)) ;
-
+		double end =  1e-9*(etime.tv_nsec  - stime.tv_nsec);
+		//print the time on the file
+		FILE * fp;
+		char * f;
+		f = "measures.csv";
+		fp = fopen(f, "a");// "w" means that we are going to write on this file, "a" appends
+		fprintf(fp,"%g\n",end); // just write down the elapsed seconds: we'll make only copy&paste to the excel :)
+		fclose(fp);
+		
     /* write result */
     printf("Writing output file\n");
     
