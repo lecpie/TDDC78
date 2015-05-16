@@ -68,8 +68,7 @@ int main (int argc, char ** argv)
     particle_t * particles, **particle_buffers, ** particle_buffers_recv;
 //    int * buffer_sizes;
    int buffer_sizes[np];
-   for( i= 0; i< np; i++)
-	buffer_sizes[i] = 0;
+   
 	
     particle_buffers = malloc (sizeof(particle_t *) * np );
     
@@ -127,6 +126,8 @@ int main (int argc, char ** argv)
     // For each time spec
     for (itime = 0, timestep = 0.0; itime < MAXTIME; ++itime, timestep += STEP_SIZE) {
 
+		for( i= 0; i< np; i++)
+			buffer_sizes[i] = 0;
         // For each particle
         for (ipart = 0; ipart < npart; ++ipart) {
 
@@ -183,16 +184,14 @@ int main (int argc, char ** argv)
 			if(p != id){
 				MPI_Send(&buffer_sizes[p], 1, MPI_INT, p, 0, MPI_COMM_WORLD);
 				MPI_Send(particle_buffers[p], buffer_sizes[p], mpi_particle_t, p, 0, MPI_COMM_WORLD);
-				printf(" me %d have sent to process %d , #particles %d\n", id, p, buffer_sizes[p]);
-				printf("me  %d npart %d\n",id,npart);
 				
 				int size;
 				MPI_Recv(&size, 1, MPI_INT, p, 0, MPI_COMM_WORLD, &status);
 				MPI_Recv(particles  + npart, size, mpi_particle_t, p, 0, MPI_COMM_WORLD, &status);
-				printf(" me %d have received from process %d , #particles %d\n", id, p, size);
+			//	printf(" me %d have received from process %d , #particles %d\n", id, p, size);
 				npart += size;
 				printf("me  %d npart %d\n",id,npart);
-		}
+			}
 		}
 
 /*		for(p = 0; p!= id && p < np; p++){
