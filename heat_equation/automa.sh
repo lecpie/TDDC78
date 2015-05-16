@@ -7,7 +7,7 @@ rm measures.csv
  for i in ${arrayname[@]}; 
 	do
 		echo "ompsalloc -t 2 -c $i ./laplsolv_omp"
-		ompsalloc -t 2 -c $i ./laplsolv_omp
+		ompsalloc -t 10 -c $i ./laplsolv_omp
 		#sleep 3s
 	done
 
