@@ -10,6 +10,8 @@
 
 #define MAXTIME 1000
 
+#define MASTER 0
+
 float rand_range (float min, float max)
 {
     return min + ((float) rand() / (float) RAND_MAX) * (max - min);
@@ -37,12 +39,30 @@ int getProcess(float y, int np)
 
 int main (int argc, char ** argv)
 {
+
 	    int id, np, i;
 
-    MPI_Init(&argc, &argv);
+	MPI_Init(&argc, &argv);
     MPI_Comm_size( MPI_COMM_WORLD, &np );
     MPI_Comm_rank( MPI_COMM_WORLD, &id );
 	MPI_Status status;
+    /* MPI_DATATYPE : mpi_particle_t */
+    MPI_Datatype mpi_particle_t;
+    const int nitems=4;
+    int          blocklengths[4] = {sizeof(float), sizeof(float), sizeof(float), sizeof(float)};
+    MPI_Datatype types[4] = {MPI_FLOAT, MPI_FLOAT, MPI_FLOAT, MPI_FLOAT};
+    MPI_Aint     offsets[4];
+
+    offsets[0] = 0;
+    offsets[1] = sizeof(float);
+    offsets[2] = 2 * sizeof(float);
+    offsets[3] = 3 * sizeof(float);
+    MPI_Type_create_struct(nitems, blocklengths, offsets, types, &mpi_particle_t);
+    MPI_Type_commit(&mpi_particle_t);
+
+    
+
+    
     particle_t * particles, **particle_buffers, ** particle_buffers_recv;
 //    int * buffer_sizes;
    int buffer_sizes[np];
@@ -177,10 +197,24 @@ int main (int argc, char ** argv)
 
     }
 
-    // Calculate pressure
-    pressure = momentum / (float) (itime * WALL_LENGTH);
+    if (id != MASTER) {
+        MPI_Send(&momentum, 1, MPI_FLOAT, MASTER, 0, MPI_COMM_WORLD);
+    }
+    else {
+        float sum;
+        MPI_Status status;
+        int expected = np - 1;
 
-    printf ("Pressure after %d timesteps : %g\n", itime, pressure);
+        while (expected--) {
+            MPI_Recv(&sum, 1, MPI_FLOAT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status);
+            momentum += sum;
+        }
+
+        // Calculate pressure
+        pressure = momentum / (float) (itime * WALL_LENGTH);
+
+        printf ("Pressure after %d timesteps : %g\n", itime, pressure);
+    }
 
     MPI_Finalize();
 
