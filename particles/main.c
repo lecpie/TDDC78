@@ -10,6 +10,8 @@
 
 #define MAXTIME 1000
 
+#define MASTER 0
+
 float rand_range (float min, float max)
 {
     return min + ((float) rand() / (float) RAND_MAX) * (max - min);
@@ -145,10 +147,24 @@ int main (int argc, char ** argv)
 
     }
 
-    // Calculate pressure
-    pressure = momentum / (float) (itime * WALL_LENGTH);
+    if (id != MASTER) {
+        MPI_Send(&momentum, 1, MPI_FLOAT, MASTER, 0, MPI_COMM_WORLD);
+    }
+    else {
+        float sum;
+        MPI_Status status;
+        int expected = np - 1;
 
-    printf ("Pressure after %d timesteps : %g\n", itime, pressure);
+        while (expected--) {
+            MPI_Recv(&sum, 1, MPI_FLOAT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status);
+            momentum += sum;
+        }
+
+        // Calculate pressure
+        pressure = momentum / (float) (itime * WALL_LENGTH);
+
+        printf ("Pressure after %d timesteps : %g\n", itime, pressure);
+    }
 
     MPI_Finalize();
 
