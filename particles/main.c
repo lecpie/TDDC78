@@ -161,36 +161,29 @@ int main (int argc, char ** argv)
         }
 
         //Comm if needed
-			
         for (ipart = 0; ipart < npart; ++ipart) {
             // Check for wall interaction and add the momentum
             momentum += wall_collide(&particles[ipart].pcord, wall);
 
             int process = getProcess(particles[ipart].pcord.y, np);
-            if (process != id) {
-				buffer_sizes[process] += 1;
-				particle_buffers[process][buffer_sizes[process]] = particles[ipart];
-				
-                //MPI_Send(particles + ipart, 4, MPI_FLOAT, process, 0, MPI_COMM_WORLD);
-				//printf(" particle %d moves to process %d , total  #particles %d\n", ipart,process,buffer_sizes[process]);
-
+            if (process != id) {				//buffer_sizes[process] += 1;
+				particle_buffers[process][buffer_sizes[process]++] = particles[ipart];
                 // Swap with the last particle and remove the last
                 particles[ipart] = particles[--npart];
             }
         }
         
         int p;
-        for(p = 0;  p < np; p++){
+        for(p = 0;  p < np; p++){		            
 			if(p != id){
 				MPI_Send(&buffer_sizes[p], 1, MPI_INT, p, 0, MPI_COMM_WORLD);
 				MPI_Send(particle_buffers[p], buffer_sizes[p], mpi_particle_t, p, 0, MPI_COMM_WORLD);
 				
-				int size;
+				int size = 0;
 				MPI_Recv(&size, 1, MPI_INT, p, 0, MPI_COMM_WORLD, &status);
 				MPI_Recv(particles  + npart, size, mpi_particle_t, p, 0, MPI_COMM_WORLD, &status);
 			//	printf(" me %d have received from process %d , #particles %d\n", id, p, size);
 				npart += size;
-				printf("me  %d npart %d\n",id,npart);
 			}
 		}
 
@@ -200,6 +193,8 @@ int main (int argc, char ** argv)
 		}*/
 
     }
+				
+	printf("me  %d npart %d\n",id,npart);
 
     if (id != MASTER) {
         MPI_Send(&momentum, 1, MPI_FLOAT, MASTER, 0, MPI_COMM_WORLD);
