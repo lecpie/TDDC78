@@ -101,7 +101,7 @@ int main (int argc, char ** argv)
     particles = malloc (MAX_NO_PARTICLES * sizeof(particle_t));
 
 
-    npart = INIT_NO_PARTICLES;
+    npart = INIT_NO_PARTICLES/np;
     momentum = 0.0;
 
     float miny = getBProc(id, np),
@@ -195,7 +195,9 @@ int main (int argc, char ** argv)
     }
 				
 	printf("me  %d npart %d\n",id,npart);
-
+	float reduced_momentum  = 0.0;
+	MPI_Reduce(&momentum,&reduced_momentum,1,MPI_FLOAT,MPI_SUM, MASTER, MPI_COMM_WORLD);
+/*
     if (id != MASTER) {
         MPI_Send(&momentum, 1, MPI_FLOAT, MASTER, 0, MPI_COMM_WORLD);
     }
@@ -208,7 +210,9 @@ int main (int argc, char ** argv)
             MPI_Recv(&sum, 1, MPI_FLOAT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status);
             momentum += sum;
         }
-
+*/
+	if(id == MASTER){
+		momentum = reduced_momentum;
         // Calculate pressure
         pressure = momentum / (float) (itime * WALL_LENGTH);
 
