@@ -42,12 +42,17 @@ int getProcess(float y, int np)
 int main (int argc, char ** argv)
 {
 
-	    int id, np, i;
+	int id, np, i;
+    double start, end;
+	unsigned ipart, jpart, npart, itime;
+    float timestep, momentum, pressure;
 
 	MPI_Init(&argc, &argv);
     MPI_Comm_size( MPI_COMM_WORLD, &np );
     MPI_Comm_rank( MPI_COMM_WORLD, &id );
 	MPI_Status status;
+	
+	
     /* MPI_DATATYPE : mpi_particle_t */
     MPI_Datatype mpi_particle_t;
     const int nitems=4;
@@ -66,27 +71,17 @@ int main (int argc, char ** argv)
 
     
     particle_t * particles, **particle_buffers, ** particle_buffers_recv;
-//    int * buffer_sizes;
    int buffer_sizes[np];
    
 	
     particle_buffers = malloc (sizeof(particle_t *) * np );
     
 	for(i=0; i<np; i++)
-		particle_buffers[i] = malloc(sizeof(particle_t)*500);
-	
-/*	particle_buffers_recv = malloc (sizeof(particle_t *) * np );
-
-	for(i=0; i<np; i++)
-		particle_buffers_recv[i] = malloc(sizeof(particle_t)*500);*/
-			
-   // buffer_sizes      = malloc (sizeof(int) * np );
+		particle_buffers[i] = malloc(sizeof(particle_t)*MAX_NO_PARTICLES);
 	
     cord_t wall;
 
-    unsigned ipart, jpart, npart, itime;
-    float timestep, momentum, pressure;
-
+    
     // Init random generator
     srand((unsigned)time(NULL));
 
@@ -101,13 +96,16 @@ int main (int argc, char ** argv)
     particles = malloc (MAX_NO_PARTICLES * sizeof(particle_t));
 
 
-    npart = INIT_NO_PARTICLES/np;
+    npart = INIT_NO_PARTICLES/np; // /np
     momentum = 0.0;
 
     float miny = getBProc(id, np),
           maxy = getEProc(id, np);
 
-	
+	// start the timer
+    start = MPI_Wtime();
+
+	// assign particles to processors
     for (ipart = 0; ipart < npart; ++ipart) {
 
         // TODO Check what initial values should be
@@ -122,7 +120,6 @@ int main (int argc, char ** argv)
         particles[ipart].pcord.vy = r * sin(t);
     }
     
-    //TODO  < MAXTIME
     // For each time spec
     for (itime = 0, timestep = 0.0; itime < MAXTIME; ++itime, timestep += STEP_SIZE) {
 
@@ -160,7 +157,7 @@ int main (int argc, char ** argv)
 
         }
 
-        //Comm if needed
+        //COMMUNICATE THE MOVED PARTICLES
         for (ipart = 0; ipart < npart; ++ipart) {
             // Check for wall interaction and add the momentum
             momentum += wall_collide(&particles[ipart].pcord, wall);
@@ -176,13 +173,14 @@ int main (int argc, char ** argv)
         int p;
         for(p = 0;  p < np; p++){		            
 			if(p != id){
+				// send the particles moved in a buffer
 				MPI_Send(&buffer_sizes[p], 1, MPI_INT, p, 0, MPI_COMM_WORLD);
 				MPI_Send(particle_buffers[p], buffer_sizes[p], mpi_particle_t, p, 0, MPI_COMM_WORLD);
 				
 				int size = 0;
+				//eventually receive new particles
 				MPI_Recv(&size, 1, MPI_INT, p, 0, MPI_COMM_WORLD, &status);
 				MPI_Recv(particles  + npart, size, mpi_particle_t, p, 0, MPI_COMM_WORLD, &status);
-			//	printf(" me %d have received from process %d , #particles %d\n", id, p, size);
 				npart += size;
 			}
 		}
@@ -194,29 +192,28 @@ int main (int argc, char ** argv)
 
     }
 				
-	printf("me  %d npart %d\n",id,npart);
-	float reduced_momentum  = 0.0;
-	MPI_Reduce(&momentum,&reduced_momentum,1,MPI_FLOAT,MPI_SUM, MASTER, MPI_COMM_WORLD);
-/*
-    if (id != MASTER) {
-        MPI_Send(&momentum, 1, MPI_FLOAT, MASTER, 0, MPI_COMM_WORLD);
-    }
-    else {
-        float sum;
-        MPI_Status status;
-        int expected = np - 1;
+				
+	printf("process #%d \t total number of particles: %d\n",id,npart);
+	int nparticles = 0;
+	MPI_Reduce(&npart,&nparticles,1,MPI_INT,MPI_SUM, MASTER, MPI_COMM_WORLD);
 
-        while (expected--) {
-            MPI_Recv(&sum, 1, MPI_FLOAT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status);
-            momentum += sum;
-        }
-*/
+	
+	
+	float reduced_momentum  = 0.0;
+	// Reduce the momentum computation on the master process
+	MPI_Reduce(&momentum,&reduced_momentum,1,MPI_FLOAT,MPI_SUM, MASTER, MPI_COMM_WORLD);
 	if(id == MASTER){
+		// stop the timer
+		end = MPI_Wtime()-start;
+		printf("MASTER mpi time: %g sec \n\n\n",end);
+
+		
 		momentum = reduced_momentum;
         // Calculate pressure
         pressure = momentum / (float) (itime * WALL_LENGTH);
 
-        printf ("Pressure after %d timesteps : %g\n", itime, pressure);
+        printf("#### Pressure after %d timesteps : %g, number of particles: %d \n", itime, pressure,nparticles);
+        printf("#### MASTER mpi time: %g sec \n\n\n",end);
     }
 
     MPI_Finalize();
