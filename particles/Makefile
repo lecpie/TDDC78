@@ -1,15 +1,15 @@
-CC=mpicc
+CC = mpicc
 
-CFLAGS = -g -Wall
+CFLAGS =  -g -Wall
 
 LFLAGS= -lpthread -lrt -lm
 
-all: particles
+all: particlesc
 
 clean:
 	-$(RM) *.o
 
-particles: main.o physics.o 
+particlesc: main.o physics.o 
 	$(CC) -o $@ main.o physics.o $(CFLAGS) $(LFLAGS)
 
 
