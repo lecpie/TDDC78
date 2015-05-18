@@ -17,7 +17,7 @@ blurc
 thresc
 laplsolv
 laplsolv_omp
-particlesc
+particles
 
 #tracing files
 *.stf*
