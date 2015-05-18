@@ -12,6 +12,10 @@
 
 #define MASTER 0
 
+// Globals
+int id, np;
+cord_t wall;
+
 float rand_range (float min, float max)
 {
     return min + ((float) rand() / (float) RAND_MAX) * (max - min);
@@ -39,10 +43,23 @@ int getProcess(float y, int np)
     return processo;
 }
 
+void prepair_update (float * momentum, particle_t * particles, int ipart, unsigned * npart, particle_t ** particle_buffers, int * buffer_sizes)
+{
+    // Check for wall interaction and add the momentum
+    *momentum += wall_collide(&particles[ipart].pcord, wall);
+
+    int process = getProcess(particles[ipart].pcord.y, np);
+    if (process != id) {				//buffer_sizes[process] += 1;
+        particle_buffers[process][buffer_sizes[process]++] = particles[ipart];
+        // Swap with the last particle and remove the last
+        particles[ipart] = particles[--*npart];
+    }
+}
+
 int main (int argc, char ** argv)
 {
 
-	int id, np, i;
+    int i;
     double start, end;
 	unsigned ipart, jpart, npart, itime;
     float timestep, momentum, pressure;
@@ -66,21 +83,14 @@ int main (int argc, char ** argv)
     offsets[3] = 3 * sizeof(float);
     MPI_Type_create_struct(nitems, blocklengths, offsets, types, &mpi_particle_t);
     MPI_Type_commit(&mpi_particle_t);
-
     
-
-    
-    particle_t * particles, **particle_buffers, ** particle_buffers_recv;
+   particle_t * particles, **particle_buffers;
    int buffer_sizes[np];
-   
 	
     particle_buffers = malloc (sizeof(particle_t *) * np );
     
 	for(i=0; i<np; i++)
 		particle_buffers[i] = malloc(sizeof(particle_t)*MAX_NO_PARTICLES);
-	
-    cord_t wall;
-
     
     // Init random generator
     srand((unsigned)time(NULL));
@@ -96,7 +106,7 @@ int main (int argc, char ** argv)
     particles = malloc (MAX_NO_PARTICLES * sizeof(particle_t));
 
 
-    npart = INIT_NO_PARTICLES/np; // /np
+    npart = INIT_NO_PARTICLES;
     momentum = 0.0;
 
     float miny = getBProc(id, np),
@@ -122,7 +132,6 @@ int main (int argc, char ** argv)
     
     // For each time spec
     for (itime = 0, timestep = 0.0; itime < MAXTIME; ++itime, timestep += STEP_SIZE) {
-
 		for( i= 0; i< np; i++)
 			buffer_sizes[i] = 0;
         // For each particle
@@ -138,6 +147,8 @@ int main (int argc, char ** argv)
                     interact(&particles[ipart].pcord, &particles[jpart].pcord, t);
 
                     collided = 1;
+
+                    prepair_update(&momentum, particles, jpart, &npart, particle_buffers, buffer_sizes);
 
                     // particle j is put into i position, particle i is advanced to i+1
                     // and particle i+i is put into j position. i is incremented
@@ -155,7 +166,11 @@ int main (int argc, char ** argv)
                 feuler(&particles[ipart].pcord, STEP_SIZE);
             }
 
+            prepair_update(&momentum, particles, ipart, &npart, particle_buffers, buffer_sizes);
+
         }
+
+        /*
 
         //COMMUNICATE THE MOVED PARTICLES
         for (ipart = 0; ipart < npart; ++ipart) {
@@ -170,6 +185,8 @@ int main (int argc, char ** argv)
             }
         }
         
+        */
+
         int p;
         for(p = 0;  p < np; p++){		            
 			if(p != id){
@@ -185,11 +202,6 @@ int main (int argc, char ** argv)
 			}
 		}
 
-/*		for(p = 0; p!= id && p < np; p++){
-			MPI_Recv(particle_buffers_recv, 4*500, MPI_FLOAT, p, 0, MPI_COMM_WORLD, &status);
-			//printf(" process %d , #particles %d\n", p,buffer_sizes[p]);
-		}*/
-
     }
 				
 				
@@ -197,8 +209,6 @@ int main (int argc, char ** argv)
 	int nparticles = 0;
 	MPI_Reduce(&npart,&nparticles,1,MPI_INT,MPI_SUM, MASTER, MPI_COMM_WORLD);
 
-	
-	
 	float reduced_momentum  = 0.0;
 	// Reduce the momentum computation on the master process
 	MPI_Reduce(&momentum,&reduced_momentum,1,MPI_FLOAT,MPI_SUM, MASTER, MPI_COMM_WORLD);
