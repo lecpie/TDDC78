@@ -96,7 +96,7 @@ int main (int argc, char ** argv)
     particles = malloc (MAX_NO_PARTICLES * sizeof(particle_t));
 
 
-    npart = INIT_NO_PARTICLES/np; // /np
+    npart = INIT_NO_PARTICLES; // /np
     momentum = 0.0;
 
     float miny = getBProc(id, np),
