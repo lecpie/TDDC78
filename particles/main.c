@@ -44,7 +44,7 @@ int main (int argc, char ** argv)
 
 	int id, np, i;
     double start, end;
-	unsigned ipart, jpart, npart, itime;
+    unsigned ipart, jpart, npart, itime, sent;
     float timestep, momentum, pressure;
 
 	MPI_Init(&argc, &argv);
@@ -98,6 +98,7 @@ int main (int argc, char ** argv)
 
     npart = INIT_NO_PARTICLES; // /np
     momentum = 0.0;
+    sent = 0;
 
     float miny = getBProc(id, np),
           maxy = getEProc(id, np);
@@ -167,6 +168,7 @@ int main (int argc, char ** argv)
 				particle_buffers[process][buffer_sizes[process]++] = particles[ipart];
                 // Swap with the last particle and remove the last
                 particles[ipart] = particles[--npart];
+                ++sent;
             }
         }
         
@@ -195,8 +197,9 @@ int main (int argc, char ** argv)
 				
 	printf("process #%d \t total number of particles: %d\n",id,npart);
 	int nparticles = 0;
+    unsigned senttotal = 0;
 	MPI_Reduce(&npart,&nparticles,1,MPI_INT,MPI_SUM, MASTER, MPI_COMM_WORLD);
-
+    MPI_Reduce(&sent, &senttotal, 1, MPI_UNSIGNED, MPI_SUM, MASTER, MPI_COMM_WORLD);
 	
 	
 	float reduced_momentum  = 0.0;
@@ -213,7 +216,14 @@ int main (int argc, char ** argv)
         pressure = momentum / (float) (itime * WALL_LENGTH);
 
         printf("#### Pressure after %d timesteps : %g, number of particles: %d \n", itime, pressure,nparticles);
+        printf("#### Particuled sent : %d\n", senttotal);
         printf("#### MASTER mpi time: %g sec \n\n\n",end);
+
+        FILE * out = fopen("measures.csv", "a");
+
+        fprintf(out, "%g\t%g\t%d\n", end, pressure, senttotal);
+
+        fclose(out);
     }
 
     MPI_Finalize();
