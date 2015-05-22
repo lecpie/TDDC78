@@ -35,8 +35,8 @@ float getEProc (int id, int np)
 int getProcess(float y, int np)
 {
 	int processo = (int) (y / (BOX_VERT_SIZE / (float) np));
-	//printf("processo : %d, %g\n",processo, y);
-    return processo;
+	
+	return (processo >= np) ? np - 1 : processo;
 }
 
 int main (int argc, char ** argv)
@@ -70,7 +70,7 @@ int main (int argc, char ** argv)
     
 
     
-    particle_t * particles, **particle_buffers, ** particle_buffers_recv;
+    particle_t * particles, **particle_buffers;
    int buffer_sizes[np];
    
 	
@@ -96,7 +96,7 @@ int main (int argc, char ** argv)
     particles = malloc (MAX_NO_PARTICLES * sizeof(particle_t));
 
 
-    npart = INIT_NO_PARTICLES; // /np
+    npart = INIT_NO_PARTICLES; //np; // /np;
     momentum = 0.0;
     sent = 0;
 
@@ -221,11 +221,12 @@ int main (int argc, char ** argv)
 
         FILE * out = fopen("measures.csv", "a");
 
-        fprintf(out, "%g\t%g\t%d\n", end, pressure, senttotal);
+        fprintf(out, "%g\t%g\t%d\t%d\n", end, pressure, senttotal,np);
 
         fclose(out);
     }
-
+	free(particles);
+	free(particle_buffers);
     MPI_Finalize();
 
     return 0;
