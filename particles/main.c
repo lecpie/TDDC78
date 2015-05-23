@@ -3,6 +3,7 @@
 #include <math.h>
 #include <time.h>
 #include <mpi.h>
+#include <VT.h>
 
 #include "definitions.h"
 #include "coordinate.h"
@@ -41,16 +42,25 @@ int getProcess(float y, int np)
 
 int main (int argc, char ** argv)
 {
-
 	int id, np, i;
     double start, end;
     unsigned ipart, jpart, npart, itime, sent;
     float timestep, momentum, pressure;
+    
+    int initsymb, collisionssymb, commsymb;
+    
+    VT_initialize(&argc, &argv);
+
+    VT_funcdef("init", VT_NOCLASS, &initsymb);
+    VT_funcdef("collisions", VT_NOCLASS, &collisionssymb);
+    VT_funcdef("communications", VT_NOCLASS, &commsymb);
 
 	MPI_Init(&argc, &argv);
     MPI_Comm_size( MPI_COMM_WORLD, &np );
     MPI_Comm_rank( MPI_COMM_WORLD, &id );
 	MPI_Status status;
+	
+	
 	
 	
     /* MPI_DATATYPE : mpi_particle_t */
@@ -66,9 +76,9 @@ int main (int argc, char ** argv)
     offsets[3] = 3 * sizeof(float);
     MPI_Type_create_struct(nitems, blocklengths, offsets, types, &mpi_particle_t);
     MPI_Type_commit(&mpi_particle_t);
-
-    
-
+	
+	// Record initialization
+    VT_enter(initsymb, VT_NOSCL);
     
     particle_t * particles, **particle_buffers;
    int buffer_sizes[np];
@@ -121,11 +131,17 @@ int main (int argc, char ** argv)
         particles[ipart].pcord.vy = r * sin(t);
     }
     
+    // Finish recording initialization
+    VT_leave(initsymb);
+    
     // For each time spec
     for (itime = 0, timestep = 0.0; itime < MAXTIME; ++itime, timestep += STEP_SIZE) {
 
 		for( i= 0; i< np; i++)
 			buffer_sizes[i] = 0;
+			
+		VT_enter(collisionssymb, VT_NOSCL);
+		
         // For each particle
         for (ipart = 0; ipart < npart; ++ipart) {
 
@@ -172,6 +188,10 @@ int main (int argc, char ** argv)
             }
         }
         
+        VT_leave(collisionssymb);
+        
+        VT_enter(commsymb, VT_NOSCL);
+        
         int p;
         for(p = 0;  p < np; p++){		            
 			if(p != id){
@@ -186,11 +206,8 @@ int main (int argc, char ** argv)
 				npart += size;
 			}
 		}
-
-/*		for(p = 0; p!= id && p < np; p++){
-			MPI_Recv(particle_buffers_recv, 4*500, MPI_FLOAT, p, 0, MPI_COMM_WORLD, &status);
-			//printf(" process %d , #particles %d\n", p,buffer_sizes[p]);
-		}*/
+		
+		VT_leave(commsymb);
 
     }
 				
@@ -228,6 +245,6 @@ int main (int argc, char ** argv)
 	free(particles);
 	free(particle_buffers);
     MPI_Finalize();
-
+    VT_finalize();
     return 0;
 }
