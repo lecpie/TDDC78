@@ -47,13 +47,14 @@ int main (int argc, char ** argv)
     unsigned ipart, jpart, npart, itime, sent;
     float timestep, momentum, pressure;
     
-    int initsymb, collisionssymb, commsymb;
+    int initsymb, collisionssymb, commsymb, classvt;
     
     VT_initialize(&argc, &argv);
-
-    VT_funcdef("init", VT_NOCLASS, &initsymb);
-    VT_funcdef("collisions", VT_NOCLASS, &collisionssymb);
-    VT_funcdef("communications", VT_NOCLASS, &commsymb);
+	
+	VT_classdef("algo", &classvt);
+    VT_funcdef("init", classvt, &initsymb);
+    VT_funcdef("collisions", classvt, &collisionssymb);
+    VT_funcdef("communications", classvt, &commsymb);
 
 	MPI_Init(&argc, &argv);
     MPI_Comm_size( MPI_COMM_WORLD, &np );
