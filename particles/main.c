@@ -47,14 +47,17 @@ int main (int argc, char ** argv)
     unsigned ipart, jpart, npart, itime, sent;
     float timestep, momentum, pressure;
     
-    int initsymb, collisionssymb, commsymb, classvt;
+    int collisionssymb, commsymb, classvt, class_cnt, pressure_cnt;
+    const double bounds[2] =  {0, 1e56};
     
     VT_initialize(&argc, &argv);
 	
-	VT_classdef("algo", &classvt);
-    VT_funcdef("init", classvt, &initsymb);
-    VT_funcdef("collisions", classvt, &collisionssymb);
-    VT_funcdef("communications", classvt, &commsymb);
+	VT_classdef("Algorithm", &classvt);
+	VT_classdef("Application counter", &class_cnt);
+    VT_funcdef("Collision Analysis", classvt, &collisionssymb);
+    VT_funcdef("Particles Communication", classvt, &commsymb);
+    VT_countdef("Pressure counter", class_cnt, VT_COUNT_FLOAT | VT_COUNT_ABSVAL | VT_COUNT_VALID_SAMPLE, VT_ME , bounds, "#", &pressure_cnt);
+    
 
 	MPI_Init(&argc, &argv);
     MPI_Comm_size( MPI_COMM_WORLD, &np );
@@ -77,9 +80,6 @@ int main (int argc, char ** argv)
     offsets[3] = 3 * sizeof(float);
     MPI_Type_create_struct(nitems, blocklengths, offsets, types, &mpi_particle_t);
     MPI_Type_commit(&mpi_particle_t);
-	
-	// Record initialization
-    VT_enter(initsymb, VT_NOSCL);
     
     particle_t * particles, **particle_buffers;
    int buffer_sizes[np];
@@ -132,16 +132,13 @@ int main (int argc, char ** argv)
         particles[ipart].pcord.vy = r * sin(t);
     }
     
-    // Finish recording initialization
-    VT_leave(initsymb);
-    
     // For each time spec
     for (itime = 0, timestep = 0.0; itime < MAXTIME; ++itime, timestep += STEP_SIZE) {
 
+		VT_enter(collisionssymb, VT_NOSCL);
+
 		for( i= 0; i< np; i++)
 			buffer_sizes[i] = 0;
-			
-		VT_enter(collisionssymb, VT_NOSCL);
 		
         // For each particle
         for (ipart = 0; ipart < npart; ++ipart) {
@@ -207,6 +204,9 @@ int main (int argc, char ** argv)
 				npart += size;
 			}
 		}
+		
+		pressure = momentum / (float) (itime * WALL_LENGTH);
+		VT_countval(1, &pressure_cnt, &pressure);
 		
 		VT_leave(commsymb);
 
